@@ -1,0 +1,197 @@
+/* Personal market desk. Shared widgets keep styles.css; page layout lives here. */
+.electron-app {
+    --color-accent: #efff00;
+    --color-accent-soft: #f7fbd9;
+    --color-accent-ink: #444700;
+    --amber: var(--color-accent);
+    --desktop-sidebar-w: 176px;
+    --desktop-bottombar-h: 0px;
+    --desktop-gap: 18px;
+    --content-inset: 16px;
+    background: var(--color-canvas);
+    color: var(--text-primary);
+}
+html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-soft: #33361b; --color-accent-ink: #efff00; }
+.electron-app .app-shell { grid-template-columns: 176px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.electron-app .app-main-pane { grid-column: 2; grid-row: 1; grid-template-rows: 72px minmax(0, 1fr); }
+.electron-app .desktop-sidebar {
+    display: flex; flex-direction: column; grid-column: 1; grid-row: 1;
+    width: 176px; height: 100%; padding: 28px 12px 16px;
+    border: 0; border-right: 1px solid var(--border); background: var(--color-surface-subtle);
+}
+.electron-app .desktop-brand { display: flex; flex: 0 0 auto; align-items: center; gap: 9px; padding: 0 4px 26px; border: 0; }
+.electron-app .desktop-brand-mark { width: 30px; height: 30px; border-radius: 6px; }
+.electron-app .desktop-brand-name { font-size: 15px; font-weight: 780; }
+.electron-app .desktop-brand-subtitle { display: block; font: 8px var(--mono); margin-top: 5px; letter-spacing: .3px; color: var(--text-tertiary); }
+.electron-app .desktop-nav { flex: 1; flex-direction: column; align-items: stretch; gap: 8px; padding: 0; width: 100%; }
+.electron-app .desktop-nav-btn {
+    display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-start; gap: 10px;
+    width: 100%; height: 60px; padding: 10px; margin: 0; text-align: left;
+    border: 1px solid transparent; border-radius: 4px; background: transparent;
+}
+.electron-app .desktop-nav-btn.active { margin: 0; border: 1px solid var(--text-primary); background: var(--color-accent); color: #1a1a1a; }
+.electron-app .desktop-nav-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.electron-app .desktop-nav-label { font-size: 13px; font-weight: 750; }
+.electron-app .desktop-nav-meta { display: block; color: var(--text-tertiary); font-size: 9px; line-height: 1.3; }
+.electron-app .desktop-nav-btn.active .desktop-nav-meta { color: #484900; }
+.electron-app .desktop-nav-icon, .electron-app .desktop-nav-icon svg { width: 20px; height: 20px; }
+.electron-app .desktop-settings-btn { margin-top: auto; }
+.electron-app .header { height: 72px; min-height: 72px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--color-canvas); }
+.electron-app .header h1 { font-size: 17px; font-weight: 750; }
+.electron-app .header-meta { flex-wrap: wrap; }
+.electron-app #main-content { padding: 24px; background: var(--color-canvas); }
+.electron-app .tab-panel.active, .electron-app #tab-dashboard.active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; width: 100%; max-width: 1600px; margin: 0 auto; align-content: start; }
+.electron-app .workspace-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.electron-app .eyebrow { display: block; margin-bottom: 8px; font: 9px var(--mono); letter-spacing: 1.6px; color: var(--text-tertiary); }
+.electron-app .workspace-heading h2 { font-size: 20px; font-weight: 730; line-height: 1.4; letter-spacing: -.5px; }
+.electron-app .workspace-link { padding: 9px 0; font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid var(--border-strong); border-radius: 0; }
+.electron-app .portfolio-summary { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr 1fr; border: 1px solid var(--text-primary); background: var(--color-surface); }
+.electron-app .portfolio-stat { min-width: 0; padding: 18px 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; border: 0; border-right: 1px solid var(--border); border-radius: 0; text-align: left; background: transparent; }
+.electron-app .portfolio-stat:last-child { border-right: 0; }
+.electron-app .portfolio-stat > span { font-size: 11px; color: var(--text-secondary); }
+.electron-app .portfolio-stat strong { font: 600 clamp(19px, 2vw, 28px) var(--mono); letter-spacing: -1px; overflow-wrap: anywhere; }
+.electron-app .portfolio-stat small { font-size: 9px; line-height: 1.5; font-weight: 400; letter-spacing: 0; color: var(--text-tertiary); }
+.electron-app .portfolio-action:hover { background: var(--color-accent-soft); }
+.electron-app .watch-workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; align-items: start; }
+.electron-app .watch-list-pane, .electron-app .detail-dock { min-width: 0; }
+.electron-app .detail-dock { display: none; }
+.electron-app .card { border-radius: 0; box-shadow: none; border: 0; border-top: 2px solid var(--text-primary); background: transparent; }
+.electron-app .card-header { padding: 14px var(--content-inset); flex-wrap: wrap; row-gap: 8px; }
+.electron-app .card > .card-body { padding: 16px var(--content-inset); }
+.electron-app .card-header h2 { font-size: 13px; }
+/* Row backgrounds need their own inset, in addition to the surrounding section. */
+.electron-app .news-item, .electron-app .news-item:active { padding: 14px 58px 14px 12px; }
+.electron-app .research-candidate { padding-inline: 12px; }
+.electron-app .sector-rotation-list { padding: 0; }
+.electron-app .sector-rotation-results > .ui-state { margin: 0; }
+.electron-app :is(.card-header, .modal-header, .settings-header) > :is(h2, h3) { min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.electron-app :is(.modal-close, .settings-close) { flex-shrink: 0; }
+.electron-app :is(.research-note, .report-note, .ui-state-detail, .settings-group-intro span) { overflow-wrap: anywhere; }
+.electron-app .watchlist-header-row { background: var(--color-surface-subtle); padding-block: 10px; }
+.electron-app .watchlist-item { border-radius: 0; border-bottom: 1px solid var(--border); box-shadow: none; }
+.electron-app .watchlist-item:hover { background: var(--color-surface-subtle); }
+.electron-app .watchlist-add { margin-bottom: 16px; }
+.electron-app .watchlist-toolbar { margin-bottom: 12px; }
+.electron-app .watchlist-tabs { min-width: 0; }
+.electron-app .watchlist-tab { border-radius: 3px; }
+.electron-app .market-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: start; }
+.electron-app .market-grid .index-section, .electron-app .market-grid .custom-index-section { grid-column: 1 / -1; }
+.electron-app .market-observation { min-width: 0; display: grid; gap: 14px; }
+.electron-app .signal-workspace-tabs { display: flex; overflow-x: auto; min-width: 0; }
+.electron-app .signal-workspace-tab { white-space: nowrap; }
+.electron-app .modal-panel { width: min(850px, calc(100vw - 32px)); max-width: none; }
+.electron-app .stock-detail-tabs { display: flex; overflow-x: auto; gap: 4px; }
+.electron-app .stock-detail-tab { flex: 1 0 auto; min-width: 62px; }
+.electron-app .stock-detail-page { min-width: 0; }
+.electron-app .research-position-editor { padding: 10px 0; font-size: 11px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.electron-app summary { cursor: pointer; line-height: 1.6; }
+.electron-app #report-center { min-width: 0; padding: 20px; border: 1px solid var(--border-strong); background: var(--color-surface-subtle); }
+.electron-app .report-heading { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.electron-app .report-heading h2 { font-size: 15px; }
+.electron-app .report-schedules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.electron-app .report-schedule { border: 1px solid var(--border); background: var(--color-surface); padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.electron-app .report-schedule label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.electron-app .report-schedule input { accent-color: #707600; }
+.electron-app .report-schedule button { justify-self: start; }
+.electron-app .report-note { color: var(--text-secondary); font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
+.electron-app .report-status { color: var(--text-secondary); font-size: 11px; line-height: 1.6; margin: 10px 0; }
+.electron-app .report-list { display: grid; max-height: 340px; overflow: auto; overscroll-behavior: contain; }
+.electron-app .report-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); }
+.electron-app .report-row strong { font-size: 12px; }
+.electron-app .report-row small { display: block; margin-top: 5px; color: var(--text-tertiary); font-size: 10px; line-height: 1.6; }
+.electron-app .report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.electron-app .report-button { padding: 8px 10px; border: 1px solid var(--border-strong); background: var(--color-surface); color: var(--text-primary); border-radius: 3px; font: inherit; font-size: 11px; min-height: 32px; }
+.electron-app .report-button:hover { background: var(--color-accent-soft); }
+.electron-app .report-document { margin-top: 20px; padding-top: 18px; border-top: 2px solid var(--text-primary); }
+.electron-app .report-document h3 { font-size: 16px; margin: 8px 0; }
+.electron-app .report-document h4 { font-size: 12px; margin: 18px 0 8px; }
+.electron-app .report-document p, .electron-app .report-document li { font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.electron-app .report-document ul { padding-left: 20px; }
+.electron-app .report-position { padding: 16px 0; border-top: 1px solid var(--border); }
+.electron-app .report-facts { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0; color: var(--text-secondary); font: 11px var(--mono); line-height: 1.8; }
+.electron-app .report-tag { display: inline-block; background: var(--color-accent-soft); color: var(--color-accent-ink); padding: 3px 6px; font-size: 10px; }
+.electron-app :is(.card, #report-center, .watch-workspace, .market-grid, .research-toolbar, .research-metrics) { min-width: 0; }
+.electron-app .research-toolbar { flex-wrap: wrap; }
+@media (min-width: 1100px) {
+    .electron-app .watch-workspace { grid-template-columns: minmax(340px, 1fr) minmax(340px, .9fr); gap: 24px; }
+    .electron-app .detail-dock { display: block; position: sticky; top: 0; min-height: 410px; border-left: 1px solid var(--border); padding-left: 22px; }
+    .electron-app .detail-placeholder { display: grid; align-content: center; min-height: 410px; gap: 12px; color: var(--text-tertiary); }
+    .electron-app .detail-placeholder h3 { color: var(--text-primary); font-size: 16px; font-weight: 600; }
+    .electron-app .detail-placeholder p { font-size: 12px; line-height: 1.8; }
+    .electron-app .detail-dock #stock-fund-panel { display: flex; flex-direction: column; position: static; inset: auto; transform: none; width: 100%; height: auto; max-height: calc(100dvh - 112px); border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+    .electron-app .detail-dock .modal-header { padding: 12px; min-height: 50px; flex-shrink: 0; }
+    .electron-app .detail-dock .modal-header h3 { font-size: 14px; }
+    .electron-app .detail-dock .modal-body { padding: 0 12px 12px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+    .electron-app .watchlist-header-spark, .electron-app .watchlist-stock-sparkline { display: none; }
+}
+@media (min-width: 1400px) {
+    .electron-app .watch-workspace { grid-template-columns: minmax(480px, 1.1fr) minmax(400px, 1fr); }
+    .electron-app .watchlist-header-spark, .electron-app .watchlist-stock-sparkline { display: block; }
+}
+@media (max-width: 999px) {
+    .electron-app .app-shell { grid-template-columns: 72px minmax(0, 1fr); }
+    .electron-app .desktop-sidebar { width: 72px; padding: 24px 6px 12px; }
+    .electron-app .desktop-brand { padding: 0 14px 24px; }
+    .electron-app .desktop-brand > div { display: none; }
+    .electron-app .desktop-nav-btn { flex-direction: column; justify-content: center; gap: 7px; height: 62px; padding: 8px 0; }
+    .electron-app .desktop-nav-copy { align-items: center; }
+    .electron-app .desktop-nav-label { font-size: 10px; }
+    .electron-app .desktop-nav-meta { display: none; }
+    .electron-app .header { padding-inline: 18px; }
+    .electron-app #main-content { padding: 18px; }
+    .electron-app .portfolio-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .electron-app .portfolio-stat:nth-child(2) { border-right: 0; }
+    .electron-app .portfolio-stat:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+}
+@media (max-width: 650px) {
+    .electron-app { --content-inset: 12px; }
+    .electron-app .app-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 62px; }
+    .electron-app .app-main-pane { grid-column: 1; grid-row: 1; grid-template-rows: 76px minmax(0, 1fr); }
+    .electron-app .desktop-sidebar { grid-column: 1; grid-row: 2; width: 100%; height: 62px; padding: 0; border: 0; border-top: 1px solid var(--border); }
+    .electron-app .desktop-brand { display: none; }
+    .electron-app .desktop-nav { flex-direction: row; padding: 3px; gap: 2px; }
+    .electron-app .desktop-nav-btn { flex: 1 1 0; width: auto; height: 54px; min-width: 0; }
+    .electron-app .desktop-settings-btn { margin-top: 0; }
+    .electron-app .desktop-nav-icon, .electron-app .desktop-nav-icon svg { width: 18px; height: 18px; }
+    .electron-app .header { height: 76px; min-height: 76px; padding: 10px 12px; gap: 8px; }
+    .electron-app .header h1 { font-size: 15px; }
+    .electron-app .header-right { flex-wrap: wrap; gap: 5px; justify-content: flex-end; max-width: 180px; }
+    .electron-app #storage-status { font-size: 9px; }
+    .electron-app #main-content { padding: 16px 12px; }
+    .electron-app .workspace-heading h2 { font-size: 18px; }
+    .electron-app .market-grid, .electron-app .report-schedules { grid-template-columns: minmax(0, 1fr); }
+    .electron-app .portfolio-stat { padding: 14px 12px; }
+    .electron-app .portfolio-stat strong { font-size: 21px; }
+    .electron-app #report-center { padding: 14px; }
+    .electron-app .modal-panel { width: calc(100vw - 16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .electron-app *, .electron-app *::before, .electron-app *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Dense rows keep price, cost and actions aligned even without a sparkline. */
+.electron-app .desktop-nav-btn.active .desktop-nav-icon { color: #1a1a1a; }
+.electron-app .watchlist-tab-add, .electron-app #holding-window-btn { color: var(--text-primary); }
+.electron-app .add-btn { background: var(--color-accent); color: #1a1a1a; }
+.electron-app .watchlist-item { min-height: 64px; padding-block: 8px; }
+.electron-app .watchlist-header-row, .electron-app .watchlist-grid { margin-inline: 0; }
+@media (min-width: 1100px) and (max-width: 1399px) {
+    .electron-app .watchlist-item { grid-template-columns: minmax(90px, 1fr) 66px 76px 22px; grid-template-areas: 'main cost price action' 'main cost change action'; gap: 4px 8px; }
+    .electron-app .watchlist-header-row { grid-template-columns: minmax(90px, 1fr) 66px 76px 22px; gap: 8px; }
+    .electron-app .watchlist-header-cost { grid-column: 2; }
+    .electron-app .watchlist-header-price { grid-column: 3; }
+    .electron-app .watchlist-header-action { grid-column: 4; }
+}
+@media (max-width: 650px) {
+    .electron-app .watchlist-item { grid-template-columns: minmax(90px, 1fr) 66px 76px 22px; grid-template-areas: 'main cost price action' 'main cost change action'; gap: 4px 8px; }
+    .electron-app .watchlist-stock-sparkline, .electron-app .watchlist-header-spark { display: none; }
+    .electron-app .watchlist-header-row { grid-template-columns: minmax(90px, 1fr) 66px 76px 22px; gap: 8px; }
+    .electron-app .watchlist-header-cost { grid-column: 2; }
+    .electron-app .watchlist-header-price { grid-column: 3; }
+    .electron-app .watchlist-header-action { grid-column: 4; }
+}
+
+.electron-app .settings-overlay, .electron-app .modal-overlay { inset: 0; }
+.electron-app .settings-panel, .electron-app .modal-panel { top: 50%; }
+.electron-app .alert-toast-container { top: 82px; }
+.electron-app .watchlist-item.is-selected { background: var(--color-accent-soft); box-shadow: inset 3px 0 0 var(--color-accent); }

@@ -1,0 +1,206 @@
+{
+  "stock": {
+    "success": true,
+    "data": {
+      "600000": {
+        "code": "600000",
+        "name": "浦发银行",
+        "price": "10.50",
+        "priceValue": 10.5,
+        "change": 0.2,
+        "changePercent": 1.94,
+        "openPrice": 10.3
+      }
+    },
+    "meta": {"degraded": false, "stale": false}
+  },
+  "stock-search": {
+    "success": true,
+    "data": [{"code": "600000", "name": "浦发银行"}],
+    "meta": {"degraded": false, "stale": false}
+  },
+  "hot-rank": {
+    "success": true,
+    "data": {"source": "ths", "items": []},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "limit-up": {
+    "success": true,
+    "data": {"items": [], "summary": {}},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "cls-news": {
+    "success": true,
+    "data": {"data": [], "nextCursor": null, "hasMore": false, "source": "cls"},
+    "meta": {"degraded": false, "stale": false, "sources": {"news": {"actual": "cls"}}}
+  },
+  "global-news": {
+    "success": true,
+    "data": {"data": [], "nextCursor": null, "hasMore": false, "source": "eastmoney"},
+    "meta": {"degraded": false, "stale": false, "sources": {"news": {"actual": "eastmoney"}}}
+  },
+  "news": {
+    "success": true,
+    "data": {"data": [], "nextCursor": null, "hasMore": false, "source": "jin10"},
+    "meta": {"degraded": false, "stale": false, "sources": {"news": {"actual": "jin10"}}}
+  },
+  "stock-news": {
+    "success": true,
+    "data": {"code": "600000", "items": [], "score": {}},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "stock-risk": {
+    "success": true,
+    "data": {"code": "600000", "announcements": {"available": false, "items": []}, "lockup": {"available": false}},
+    "meta": {"degraded": true, "stale": false}
+  },
+  "dragon-tiger": {
+    "success": true,
+    "data": {"date": "2026-08-08", "stocks": []},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "fund-flow-120d": {
+    "success": true,
+    "data": {"days": 60, "count": 1, "items": [{"code": "600000", "available": false, "recent": [], "latestDate": null}]},
+    "meta": {"degraded": true, "stale": false}
+  },
+  "market-data": {
+    "success": true,
+    "data": {},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "stock-kline": {
+    "success": true,
+    "data": {"bars": [], "analysis": {}, "latestDate": null},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "stock-minute": {
+    "success": true,
+    "data": {"points": [], "latest": null},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "opportunity-radar": {
+    "success": true,
+    "data": {"generatedAt": "2026-08-08T00:00:00Z", "items": [], "sourceStatus": {}},
+    "meta": {"degraded": true, "stale": false}
+  },
+  "market-warnings": {
+    "success": true,
+    "data": {
+      "600664": {
+        "code": "600664",
+        "monitored": false,
+        "monitorEnd": "",
+        "anomaly": true,
+        "anomalyRule": "30日累计正偏离达到200%"
+      }
+    },
+    "meta": {"degraded": false, "stale": false}
+  },
+  "sector-rotation": {
+    "success": true,
+    "data": {"status": "ready", "snapshotDate": "2026-08-12", "sectors": [{"rank": 1, "sectorName": "医药", "stocksCount": 18, "heatValue": 100, "driveEvent": "创新药交易活跃", "rotationDays": 5, "rotationTimes": 5, "rotationProb": "100%", "emotionalCycle": "发酵", "recognitionBenchmark": "示例股票", "trendAnalysis": "示例趋势", "tradingStrategy": "示例策略"}], "source": "deepq-ticai", "sourceLabel": "DeepQ 题材记忆库"},
+    "meta": {"degraded": false, "stale": false}
+  },
+  "intraday-screening": {
+    "success": true,
+    "data": {
+      "status": "not_ready",
+      "snapshotDate": "2026-08-08",
+      "snapshotTime": "14:30",
+      "latestPublishedAt": "2026-08-08 14:30",
+      "source": "portfolio",
+      "sourceLabel": "公开报告",
+      "moduleHtml": ""
+    },
+    "meta": {
+      "asOf": "2026-08-09T00:00:00Z",
+      "degraded": true,
+      "stale": false,
+      "sources": {
+        "intradayScreening": {
+          "actual": "portfolio",
+          "actualLabel": "公开报告",
+          "requested": "portfolio",
+          "status": "not_ready"
+        }
+      }
+    }
+  },
+  "stock-fundamentals": {
+    "success": true,
+    "data": {
+      "available": true,
+      "source": "eastmoney",
+      "sourceLabel": "东方财富财务指标",
+      "periods": [
+        {
+          "reportDate": "2026-06-30",
+          "disclosedAt": "2026-08-15",
+          "profitGrowth": 12,
+          "roe": 8,
+          "revenue": null
+        }
+      ]
+    },
+    "meta": {
+      "stale": false,
+      "degraded": false
+    }
+  },
+  "stock-research": {
+    "success": true,
+    "data": {
+      "code": "600000",
+      "quote": {
+        "code": "600000",
+        "name": "浦发银行",
+        "price": "10.50",
+        "priceValue": 10.5,
+        "change": 0.2,
+        "changePercent": 1.94,
+        "openPrice": 10.3
+      },
+      "quant": {
+        "score": null,
+        "coverage": 16,
+        "factors": [],
+        "missingSources": [
+          "technical",
+          "fund",
+          "news",
+          "risk",
+          "financial"
+        ]
+      }
+    },
+    "meta": {
+      "stale": false,
+      "degraded": true
+    }
+  },
+  "stock-ai-research": {
+    "success": true,
+    "data": {
+      "items": []
+    },
+    "meta": {
+      "stale": false,
+      "degraded": false
+    }
+  },
+  "price-alerts": {
+    "success": true,
+    "data": {
+      "rules": [],
+      "history": [],
+      "lastCheckedAt": null,
+      "status": "idle"
+    },
+    "meta": {
+      "stale": false,
+      "degraded": false
+    }
+  },
+  "research-reports": {"success": true, "data": {"settings": {"premarket": false, "afterClose": false}, "items": [], "calendarKnown": true}, "meta": {"stale": false, "degraded": false}}
+}

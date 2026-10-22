@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-color-mode="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+    <title>恭喜发财</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="workbench.css">
+    <link rel="stylesheet" href="enhance.css">
+</head>
+<body class="electron-app">
+
+<!-- 涨跌幅告警弹窗容器(固定在屏幕最顶部) -->
+<div class="alert-toast-container" id="alert-toast-container" aria-live="polite"></div>
+
+<div class="app-shell" id="app-shell">
+<aside class="desktop-sidebar" aria-label="桌面导航">
+    <div class="desktop-brand" data-tauri-drag-region="deep">
+        <img class="desktop-brand-mark" src="assets/app-icon.png" alt="" aria-hidden="true" draggable="false">
+        <div>
+            <div class="desktop-brand-name">恭喜发财</div>
+            <div class="desktop-brand-subtitle">PERSONAL MARKET DESK</div>
+        </div>
+    </div>
+    <nav class="desktop-nav"><button class="desktop-nav-btn tab-btn active" data-tab="dashboard" type="button" aria-label="盯盘"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 18h16M6 14l4-4 3 3 5-7" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">盯盘</span><span class="desktop-nav-meta">持仓 / 自选 / 详情</span></span></button>
+<button class="desktop-nav-btn tab-btn" data-tab="market" type="button" aria-label="市场"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 19V9h4v10m2 0V5h4v14m2 0V2h4v17" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">市场</span><span class="desktop-nav-meta">指数 / 资金 / 市场观察</span></span></button>
+<button class="desktop-nav-btn tab-btn" data-tab="research" type="button" aria-label="研究"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h4" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">研究</span><span class="desktop-nav-meta">候选 / 个股 / 每日报告</span></span></button>
+<button class="desktop-nav-btn tab-btn" data-tab="alerts" type="button" aria-label="提醒"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4zM10 21h4" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">提醒</span><span class="desktop-nav-meta">条件规则 / 触发记录</span></span></button>
+<button class="desktop-nav-btn tab-btn" data-tab="news" type="button" aria-label="资讯"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 5h16v14H4zM8 9h8M8 13h8" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">资讯</span><span class="desktop-nav-meta">快讯 / 消息 / 来源</span></span></button><button class="desktop-nav-btn desktop-settings-btn" id="settings-btn" aria-label="设置" title="设置" type="button">
+            <span class="desktop-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z" />
+                    <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.2 2.2 0 0 1-3.1 3.1l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.08 1.65V21.5a2.2 2.2 0 0 1-4.4 0v-.13a1.8 1.8 0 0 0-1.08-1.65 1.8 1.8 0 0 0-1.98.36l-.04.04a2.2 2.2 0 0 1-3.1-3.1l.04-.04A1.8 1.8 0 0 0 4.6 15a1.8 1.8 0 0 0-1.65-1.08H2.8a2.2 2.2 0 0 1 0-4.4h.15A1.8 1.8 0 0 0 4.6 8.44a1.8 1.8 0 0 0-.36-1.98l-.04-.04a2.2 2.2 0 0 1 3.1-3.1l.04.04a1.8 1.8 0 0 0 1.98.36A1.8 1.8 0 0 0 10.4 2.07V1.9a2.2 2.2 0 0 1 4.4 0v.17a1.8 1.8 0 0 0 1.08 1.65 1.8 1.8 0 0 0 1.98-.36l.04-.04a2.2 2.2 0 0 1 3.1 3.1l-.04.04a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.65 1.08h.15a2.2 2.2 0 0 1 0 4.4h-.15A1.8 1.8 0 0 0 19.4 15z" />
+                </svg>
+            </span>
+            <span class="desktop-nav-copy">
+                <span class="desktop-nav-label">设置</span>
+                <span class="desktop-nav-meta">外观 / 数据 / 关于</span>
+            </span>
+        </button></nav>
+</aside>
+
+<div class="app-main-pane">
+<!-- 头部 -->
+<header class="header" id="header" data-tauri-drag-region="deep">
+    <div class="header-left">
+        <h1 id="header-title">我的盯盘</h1>
+        <div class="header-meta">
+            <div class="header-subtitle" id="last-updated">等待更新</div>
+            <div class="refresh-status" id="refresh-status" aria-live="polite"></div>
+            <button class="app-update-notice" id="app-update-notice" type="button" hidden></button>
+        </div>
+    </div>
+    <div class="header-right" data-tauri-drag-region="false">
+        <button class="storage-status" id="storage-status" type="button" aria-live="polite" title="配置保存状态">配置状态未知</button>
+        <button class="header-btn electron-only" id="holding-window-btn" aria-label="打开持仓浮窗" title="持仓浮窗" hidden>浮窗</button>
+        <button class="header-btn" id="refresh-btn" aria-label="刷新" title="刷新全部数据">刷新</button>
+    </div>
+</header>
+
+<!-- Tab 栏 — 顶部文字标签 -->
+
+
+<main id="main-content">
+<div class="tab-panel active" id="tab-dashboard">
+<div class="workspace-heading"><div><p class="eyebrow">MY WORKSPACE</p><h2>把注意力留给持仓</h2></div><button type="button" class="workspace-link" data-navigate="research">查看研究报告 ↗</button></div>
+<section class="portfolio-summary" id="portfolio-summary" aria-label="本机持仓统计" aria-live="polite"></section>
+<div class="watch-workspace"><div class="watch-list-pane"><section class="card watchlist-section" data-collapsible="false">
+            <div class="card-header">
+                <h2>持仓与自选</h2>
+                <span class="watchlist-header-time" id="watchlist-update-time"></span>
+
+            </div>
+            <div class="card-body">
+                <div class="watchlist-toolbar">
+                    <div class="watchlist-tabs" id="watchlist-tabs"></div>
+                    <button class="watchlist-tab-add" id="add-watch-tab-btn" type="button" aria-label="新增分组">+</button>
+                </div>
+                <div class="watchlist-add">
+                    <input type="text" id="stock-code-input" aria-label="搜索并添加股票" placeholder="输入代码或股票名，如 600519 / 贵州茅台">
+                    <button id="add-stock-btn" class="add-btn">添加</button>
+                </div>
+                <div class="watchlist-header-row">
+                    <span class="watchlist-header-name">股票名</span>
+                    <span class="watchlist-header-spark">走势</span>
+                    <span class="watchlist-header-cost">成本价</span>
+                    <span class="watchlist-header-price">股价 / 涨跌</span>
+                    <span class="watchlist-header-change">涨跌幅</span>
+                    <span class="watchlist-header-action"></span>
+                </div>
+                <div class="watchlist-grid" id="watchlist-grid">
+                    <div class="ui-state ui-state--empty" data-ui-state="empty" role="status"><strong class="ui-state-title">暂无自选股</strong><span class="ui-state-detail">通过上方输入框添加代码或股票名称。</span></div>
+                </div>
+            </div>
+        </section></div><aside class="detail-dock" id="stock-detail-dock" aria-label="标的详情"><div class="detail-placeholder" id="detail-placeholder"><span class="eyebrow">STOCK DETAIL</span><h3>从列表选择一个标的</h3><p>行情、研究与提醒，在同一处查看。</p></div><div class="modal-panel" id="stock-fund-panel" role="region" aria-labelledby="stock-fund-title" hidden>
+    <div class="modal-header">
+        <h3 id="stock-fund-title">标的详情</h3>
+        <button class="modal-close" id="stock-fund-close" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body" id="stock-fund-body">
+        <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载个股详情</strong><span class="ui-state-detail">行情、技术面和资金数据返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>
+    </div>
+</div></aside></div>
+</div>
+<div class="tab-panel" id="tab-market"><div class="workspace-heading"><div><p class="eyebrow">MARKET OVERVIEW</p><h2>先看市场，再看信号</h2></div></div><div class="market-grid"><section class="card index-section" data-collapsible="false">
+            <div class="card-header">
+                <h2>大盘指数</h2>
+            </div>
+            <div class="card-body">
+                <div class="index-grid">
+                    <div class="index-item" data-index="shangzhi">
+                        <div class="index-name">上证指数</div>
+                        <div class="index-value neutral" id="shangzhi-value">--</div>
+                        <div class="index-change" id="shangzhi-change">--</div>
+                    </div>
+                    <div class="index-item" data-index="shengzheng">
+                        <div class="index-name">深证成指</div>
+                        <div class="index-value neutral" id="shengzheng-value">--</div>
+                        <div class="index-change" id="shengzheng-change">--</div>
+                    </div>
+                    <div class="index-item" data-index="chuangye">
+                        <div class="index-name">创业板指</div>
+                        <div class="index-value neutral" id="chuangye-value">--</div>
+                        <div class="index-change" id="chuangye-change">--</div>
+                    </div>
+                    <div class="index-item" data-index="zhuanke50">
+                        <div class="index-name">科创50</div>
+                        <div class="index-value neutral" id="zhuanke50-value">--</div>
+                        <div class="index-change" id="zhuanke50-change">--</div>
+                    </div>
+                </div>
+            </div>
+        </section><section class="card custom-index-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>自选指数</h2>
+                <span class="custom-index-header-time" id="custom-index-update-time"></span>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-body">
+                <form class="custom-index-add-form" id="custom-index-add-form" hidden>
+                    <input type="text" id="custom-index-input" autocomplete="off" placeholder="输入指数 / ETF / 板块代码或名称" aria-label="指数或 ETF 代码/名称">
+                    <button type="submit">添加</button>
+                    <button type="button" class="secondary" id="custom-index-add-cancel">取消</button>
+                </form>
+                <div class="index-grid" id="custom-index-grid"></div>
+            </div>
+        </section><section class="card market-breadth-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>市场涨跌家数</h2>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-body">
+                <div class="market-breadth-grid" role="group" aria-label="沪深京市场涨跌家数">
+                    <div class="market-breadth-item">
+                        <span class="market-breadth-label">上涨</span>
+                        <strong class="market-breadth-value positive" id="market-breadth-up">--</strong>
+                    </div>
+                    <div class="market-breadth-item">
+                        <span class="market-breadth-label">平盘</span>
+                        <strong class="market-breadth-value neutral" id="market-breadth-flat">--</strong>
+                    </div>
+                    <div class="market-breadth-item">
+                        <span class="market-breadth-label">下跌</span>
+                        <strong class="market-breadth-value negative" id="market-breadth-down">--</strong>
+                    </div>
+                </div>
+                <div class="market-breadth-track" id="market-breadth-track" role="img" aria-label="市场涨跌比例暂不可用">
+                    <span class="market-breadth-segment is-up" data-breadth-segment="up"></span>
+                    <span class="market-breadth-segment is-flat" data-breadth-segment="flat"></span>
+                    <span class="market-breadth-segment is-down" data-breadth-segment="down"></span>
+                </div>
+                <div class="market-breadth-meta">
+                    <span id="market-breadth-summary">等待有效行情</span>
+                    <span id="market-breadth-status" aria-live="polite">正在同步</span>
+                </div>
+            </div>
+        </section><section class="card capital-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>资金流向</h2>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-body">
+                <div class="capital-grid">
+                    <div class="capital-item">
+                        <div class="capital-label">主力</div>
+                        <div class="capital-value" id="main-fund-value">--</div>
+                    </div>
+                    <div class="capital-item">
+                        <div class="capital-label">大单</div>
+                        <div class="capital-value" id="large-value">--</div>
+                    </div>
+                    <div class="capital-item">
+                        <div class="capital-label">中单</div>
+                        <div class="capital-value" id="medium-value">--</div>
+                    </div>
+                    <div class="capital-item">
+                        <div class="capital-label">小单</div>
+                        <div class="capital-value" id="small-value">--</div>
+                    </div>
+                    <div class="capital-item">
+                        <div class="capital-label">沪股通盘中</div>
+                        <div class="capital-value" id="north-hgt-value">--</div>
+                    </div>
+                    <div class="capital-item">
+                        <div class="capital-label">北向成交额</div>
+                        <div class="capital-value" id="north-daily-value">--</div>
+                    </div>
+                </div>
+            </div>
+        </section><section class="card sector-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>板块排行</h2>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-body">
+                <div class="sector-filter-row">
+                    <div class="sector-tabs" data-sector-filter="boardType" aria-label="板块类型">
+                        <button type="button" class="sector-tab active" data-value="industry">行业</button>
+                        <button type="button" class="sector-tab" data-value="concept">概念</button>
+                        <button type="button" class="sector-tab" data-value="region">地域</button>
+                    </div>
+                    <div class="sector-tabs" data-sector-filter="period" aria-label="资金周期">
+                        <button type="button" class="sector-tab active" data-value="today">今日</button>
+                        <button type="button" class="sector-tab" data-value="5d">5日</button>
+                        <button type="button" class="sector-tab" data-value="10d">10日</button>
+                    </div>
+                    <span class="sector-flow-status" id="sector-flow-status"></span>
+                </div>
+                <div class="sector-chart">
+                    <div class="sector-chart-group">
+                        <h4 class="sector-group-title">资金流入 TOP5</h4>
+                        <div class="sector-bars" id="sector-bars-inflow"></div>
+                    </div>
+                    <div class="sector-chart-group">
+                        <h4 class="sector-group-title">资金流出 TOP5</h4>
+                        <div class="sector-bars" id="sector-bars-outflow"></div>
+                    </div>
+                </div>
+            </div>
+        </section><section class="card sector-panorama-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>行业全景</h2>
+                <span class="sector-panorama-status" id="sector-panorama-status" aria-live="polite">正在同步</span>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-body">
+                <div class="sector-panorama-grid" id="sector-panorama-grid" role="list" aria-label="重点行业实时涨跌幅">
+                    <div class="ui-state ui-state--loading" data-ui-state="loading" role="status">
+                        <strong class="ui-state-title">正在同步行业行情</strong>
+                    </div>
+                </div>
+            </div>
+        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="limit">打板情绪</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
+            <div class="card-header sector-rotation-header">
+                <div class="sector-rotation-heading">
+                    <h2>轮动板块</h2>
+                    <span class="sector-rotation-update-time" id="sector-rotation-update-time"></span>
+                </div>
+                <button class="intraday-screening-run-btn" id="sector-rotation-run-btn" type="button">获取板块轮动</button>
+            </div>
+            <div class="card-body">
+                <div class="intraday-screening-status" id="sector-rotation-status" role="status" aria-live="polite">不会自动获取。点击后读取上一交易日的板块轮动数据。</div>
+                <div class="sector-rotation-results" id="sector-rotation-results"></div>
+            </div>
+        </section><section class="card hot-rank-section signal-workspace-panel" data-signal-panel="heat" hidden>
+            <div class="card-header">
+                <h2>市场热度</h2>
+                <span class="hot-rank-header-time" id="hot-rank-update-time"></span>
+            </div>
+            <div class="card-body">
+                <div class="hot-rank-tabs">
+                    <button class="hot-rank-tab active" data-source="ths">同花顺热榜</button>
+                    <button class="hot-rank-tab" data-source="em">东财人气榜</button>
+                </div>
+                <div class="hot-rank-panel active" id="hot-rank-panel-ths">
+                    <div class="hot-rank-table-head" role="row">
+                        <span role="columnheader">排名</span>
+                        <span role="columnheader">股票</span>
+                        <span role="columnheader">涨跌幅</span>
+                        <span role="columnheader">热度</span>
+                        <span role="columnheader">变化</span>
+                    </div>
+                    <ul class="hot-rank-list" id="hot-rank-list-ths">
+                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">保留当前结构，等待最新排名。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
+                    </ul>
+                </div>
+                <div class="hot-rank-panel" id="hot-rank-panel-em">
+                    <div class="hot-rank-table-head" role="row">
+                        <span role="columnheader">排名</span>
+                        <span role="columnheader">股票</span>
+                        <span role="columnheader">价格</span>
+                        <span role="columnheader">涨跌幅</span>
+                        <span role="columnheader">变化</span>
+                    </div>
+                    <ul class="hot-rank-list" id="hot-rank-list-em">
+                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">保留当前结构，等待最新排名。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
+                    </ul>
+                </div>
+            </div>
+        </section><section class="card limit-up-section signal-workspace-panel" data-signal-panel="limit" hidden>
+            <div class="card-header">
+                <h2>打板情绪</h2>
+            </div>
+            <div class="card-body">
+                <div class="limit-up-summary" id="limit-up-summary"></div>
+                <div class="limit-up-tabs">
+                    <button class="limit-up-tab active" data-type="zt">涨停</button>
+                    <button class="limit-up-tab" data-type="zb">炸板</button>
+                    <button class="limit-up-tab" data-type="dt">跌停</button>
+                    <button class="limit-up-tab" data-type="yzt">昨涨停</button>
+                </div>
+                <div class="limit-up-table-head" role="row">
+                    <span role="columnheader">股票</span>
+                    <span role="columnheader">涨跌幅</span>
+                    <span role="columnheader" id="limit-up-col-stat">连板</span>
+                    <span role="columnheader" id="limit-up-col-extra">封单</span>
+                    <span role="columnheader">行业</span>
+                </div>
+                <div class="limit-up-list" id="limit-up-list">
+                    <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载打板数据</strong><span class="ui-state-detail">列表返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>
+                </div>
+            </div>
+        </section></section></div>
+<div class="tab-panel" id="tab-research"><div class="workspace-heading"><div><p class="eyebrow">RESEARCH DESK</p><h2>有依据的研究，有时点的结论</h2></div></div><section id="report-center" aria-label="盘前盘后报告"></section><section class="card opportunity-radar-section">
+            <div class="card-header">
+                <h2>候选初筛与 AI 研究</h2>
+                <span class="opportunity-radar-header-time" id="opportunity-radar-update-time"></span>
+            </div>
+            <div class="card-body">
+                <div class="research-toolbar">
+                    <label>候选池<select id="research-pool"><option value="radar">机会初筛</option><option value="watchlist">全部自选</option></select></label>
+                    <label>研究数量<select id="research-batch-count"><option value="3">前3只</option><option value="5">前5只</option><option value="10">前10只</option></select></label>
+                    <button type="button" id="research-batch-run">AI 评分研究</button>
+                    <button type="button" id="research-batch-stop" hidden>停止后续</button>
+                </div>
+                <p class="research-note">初筛使用市场信号规则；AI 研究需手动运行。分数分别展示，均不代表上涨概率。</p>
+                <p id="research-batch-status" role="status"></p><div id="research-candidates" aria-live="polite"></div>
+                <div class="opportunity-radar-list" id="opportunity-radar-list">
+                    <div class="ui-state ui-state--loading" data-ui-state="loading" role="status">
+                        <strong class="ui-state-title">正在扫描机会</strong>
+                        <span class="ui-state-detail">候选信号返回后会在这里更新。</span>
+                        <div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+                    </div>
+                </div>
+            </div>
+        </section></div>
+<div class="tab-panel" id="tab-alerts"><div class="workspace-heading"><div><p class="eyebrow">ALERT CENTER</p><h2>只关注你设定的条件</h2></div></div><section class="card"><div class="card-header"><h2>价格提醒与历史</h2></div><div class="card-body" id="price-alert-workspace"></div></section></div>
+<div class="tab-panel" id="tab-news"><div class="workspace-heading"><div><p class="eyebrow">NEWS WIRE</p><h2>市场消息，保留原始来源</h2></div></div><section class="card news-section">
+            <div class="card-header">
+                <h2>财经快讯</h2>
+            </div>
+            <div class="card-body">
+                <!-- 新闻来源切换 -->
+                <div class="news-source-tabs">
+                    <button class="news-source-tab active" data-source="jin10">金十快讯</button>
+                    <button class="news-source-tab" data-source="cls">财联社</button>
+                    <button class="news-source-tab" data-source="eastmoney">东财资讯</button>
+                </div>
+                <div class="news-list" id="news-list">
+                    <div class="ui-state ui-state--loading" data-ui-state="loading" role="status">
+                        <strong class="ui-state-title">正在加载快讯</strong>
+                        <span class="ui-state-detail">最新消息返回后会在这里更新。</span>
+                        <div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+                    </div>
+                </div>
+            </div>
+        </section></div>
+</main>
+
+<!-- 页脚 -->
+<footer class="footer">
+    <p>数据仅供参考，不构成投资建议</p>
+    <p>数据来源：腾讯财经 · 新浪财经 · 金十数据 · 财联社 · 东方财富 · 沪深交易所 · HKEX</p>
+</footer>
+</div>
+</div>
+
+<!-- 设置面板 -->
+<div class="settings-overlay" id="settings-overlay" hidden></div>
+<div class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-panel-title" hidden>
+    <div class="settings-header">
+        <h3 id="settings-panel-title">设置</h3>
+        <button class="settings-close" id="settings-close" aria-label="关闭设置">✕</button>
+    </div>
+    <div class="settings-body">
+        <div class="settings-nav" role="tablist" aria-label="设置分类">
+            <button class="settings-nav-btn active" type="button" role="tab" aria-selected="true" data-settings-view="appearance">外观</button>
+            <button class="settings-nav-btn" type="button" role="tab" aria-selected="false" data-settings-view="refresh">刷新</button>
+            <button class="settings-nav-btn" type="button" role="tab" aria-selected="false" data-settings-view="alerts">告警</button>
+            <button class="settings-nav-btn" type="button" role="tab" aria-selected="false" data-settings-view="ai">AI 服务</button>
+            <button class="settings-nav-btn" type="button" role="tab" aria-selected="false" data-settings-view="data">数据</button>
+            <button class="settings-nav-btn" type="button" role="tab" aria-selected="false" data-settings-view="about">关于</button>
+        </div>
+        <section class="settings-view active" data-settings-panel="appearance">
+        <div class="settings-group-intro">
+            <strong>应用外观</strong>
+            <span>主窗口、持仓浮窗和桌面告警使用同一套显示模式；浮窗的价格配色与不透明度在此单独设置。</span>
+        </div>
+        <div class="settings-row">
+            <label for="color-mode-select">显示模式</label>
+            <select id="color-mode-select">
+                <option value="light" selected>浅色</option>
+                <option value="dark">深色</option>
+                <option value="system">跟随系统</option>
+            </select>
+        </div>
+        <div class="settings-appearance-preview" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="settings-section-label">持仓浮窗</div>
+        <div class="settings-row">
+            <label>价格颜色</label>
+            <select id="holding-color-mode">
+                <option value="market" selected>红绿显示</option>
+                <option value="white">单色显示</option>
+            </select>
+        </div>
+        <div class="settings-row settings-row-stacked">
+            <div class="settings-row-title">
+                <label>不透明度</label>
+                <span class="settings-range-value" id="holding-opacity-value">100%</span>
+            </div>
+            <input type="range" id="holding-opacity-input" min="0" max="100" step="1" value="100" class="settings-range-input">
+        </div>
+        </section>
+        <section class="settings-view" data-settings-panel="refresh" hidden>
+        <div class="settings-group-intro">
+            <strong>数据刷新</strong>
+            <span>分别控制行情、信号和快讯的更新节奏。</span>
+        </div>
+        <div class="settings-row">
+            <label>自动刷新</label>
+            <label class="toggle">
+                <input type="checkbox" id="auto-refresh-toggle" checked>
+                <span class="toggle-track"></span>
+            </label>
+        </div>
+        <div class="settings-section-label">盘中行情 / 指数与自选股</div>
+        <div class="settings-row">
+            <label>交易时段间隔</label>
+            <select id="refresh-interval-main">
+                <option value="5" selected>5秒</option>
+                <option value="10">10秒</option>
+                <option value="30">30秒</option>
+                <option value="60">1分钟</option>
+            </select>
+        </div>
+        <div class="settings-section-label">信号数据 / 资金流与板块</div>
+        <div class="settings-row">
+            <label>有效时段间隔</label>
+            <select id="refresh-interval-signal">
+                <option value="900">15分钟</option>
+                <option value="1800" selected>30分钟</option>
+                <option value="3600">1小时</option>
+                <option value="7200">2小时</option>
+            </select>
+        </div>
+        <div class="settings-section-label">财经新闻 / 全天刷新</div>
+        <div class="settings-row">
+            <label>刷新间隔</label>
+            <select id="refresh-interval-news">
+                <option value="60" selected>1分钟</option>
+                <option value="600">10分钟</option>
+                <option value="1800">30分钟</option>
+            </select>
+        </div>
+        </section>
+        <section class="settings-view" data-settings-panel="ai" hidden>
+            <div class="settings-group-intro"><strong>AI 研究服务</strong><span>这里配置兼容 OpenAI Chat Completions 的服务。研究只在点击生成时调用。</span></div>
+            <form id="ai-settings-form" class="research-settings-form">
+                <label>API 基础地址<input type="url" id="ai-base-url" required placeholder="https://服务域名/v1" autocomplete="off"></label>
+                <label>模型名称<input id="ai-model" required maxlength="120" autocomplete="off"></label>
+                <label>API 密钥<input type="password" id="ai-api-key" autocomplete="new-password" placeholder="留空则保留该服务已保存的密钥"></label>
+                <p class="research-note">密钥保存在 macOS 钥匙串 / Windows 凭据管理器，不写入配置导出。更换 API 地址后需要保存对应密钥。</p>
+                <div class="research-toolbar"><button type="submit">保存 AI 服务</button><button type="button" id="ai-clear-key">删除该服务密钥</button></div>
+                <p id="ai-settings-status" role="status"></p>
+            </form>
+        </section>
+        <section class="settings-view" data-settings-panel="alerts" hidden>
+        <div class="settings-group-intro">
+            <strong>持仓告警</strong>
+            <span>触发后显示桌面弹窗，可分别控制上涨和下跌提示音。</span>
+        </div>
+        <div class="settings-row">
+            <label>桌面弹窗提醒</label>
+            <label class="toggle">
+                <input type="checkbox" id="alert-enabled-toggle" checked>
+                <span class="toggle-track"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <label>触发阈值 (%)</label>
+            <input type="number" id="alert-threshold-input" min="0.1" max="20" step="0.1" value="2" class="settings-number-input">
+        </div>
+        <div class="settings-row settings-row-stacked">
+            <div class="settings-row-title">
+                <label>提醒不透明度</label>
+                <span class="settings-range-value" id="alert-opacity-value">92%</span>
+            </div>
+            <input type="range" id="alert-opacity-input" min="20" max="100" step="5" value="92" class="settings-range-input">
+        </div>
+        <div class="settings-row">
+            <label>上涨提示音</label>
+            <label class="toggle">
+                <input type="checkbox" id="bull-sound-toggle" checked>
+                <span class="toggle-track"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <label>下跌提示音</label>
+            <label class="toggle">
+                <input type="checkbox" id="bear-sound-toggle" checked>
+                <span class="toggle-track"></span>
+            </label>
+        </div>
+        <div class="alert-preview-actions">
+            <button type="button" class="data-action-btn secondary" id="preview-bull-alert">测试上涨提醒</button>
+            <button type="button" class="data-action-btn secondary" id="preview-bear-alert">测试下跌提醒</button>
+        </div>
+        </section>
+        <section class="settings-view" data-settings-panel="data" hidden>
+        <div class="settings-group-intro">
+            <strong>自选数据</strong>
+            <span>备份或恢复自选股分组、持仓信息、自选指数。</span>
+        </div>
+        <div class="data-action">
+            <div>
+                <div class="data-action-title">导出自选数据</div>
+                <div class="data-action-desc">包含自选股分组、持仓成本、股数、备注名、自选指数。</div>
+            </div>
+            <button class="data-action-btn" id="export-watchlist-btn" type="button">导出</button>
+        </div>
+        <div class="data-action">
+            <div>
+                <div class="data-action-title">导入自选数据</div>
+                <div class="data-action-desc">导入 JSON 前会预览新增、冲突和移除数量，可选择合并或替换；未包含的类别会保留。</div>
+            </div>
+            <button class="data-action-btn secondary" id="import-watchlist-btn" type="button">导入</button>
+            <input type="file" id="import-watchlist-file" accept="application/json,.json" hidden>
+        </div>
+        <div class="watchlist-status data-status" id="data-status"></div>
+        <div class="settings-storage-status" id="settings-storage-status" role="status" aria-live="polite"></div>
+        <button class="data-action-btn secondary" id="retry-storage-btn" type="button" hidden>重试保存</button>
+        </section>
+        <section class="settings-view settings-about-view" data-settings-panel="about" hidden>
+        <div class="settings-about-identity">
+            <img class="settings-about-mark" src="assets/app-icon.png" alt="" aria-hidden="true">
+            <div>
+                <strong class="settings-about-name">恭喜发财桌面版</strong>
+                <span class="settings-about-kicker">本地行情、自选股与持仓提醒工具</span>
+            </div>
+        </div>
+        <p class="settings-about-description">Web 版：原生 HTML、CSS 和 JavaScript 前端；行情网关、配置存储、价格提醒与盘前/盘后报告由服务器持续运行，关机也能触发。</p>
+        <dl class="settings-about-details">
+            <div>
+                <dt>运行方式</dt>
+                <dd>本地桌面应用</dd>
+            </div>
+            <div>
+                <dt>维护者</dt>
+                <dd>lrwei91</dd>
+            </div>
+            <div>
+                <dt>项目仓库</dt>
+                <dd>lrwei91/fund-tracker-desktop</dd>
+            </div>
+        </dl>
+        <section class="app-update-card" aria-label="软件更新">
+            <div class="settings-row"><span>当前版本</span><strong id="app-current-version">--</strong></div>
+            <div class="settings-row"><label for="app-automatic-updates">自动检查更新</label><label class="toggle"><input type="checkbox" id="app-automatic-updates" checked><span class="toggle-track"></span></label></div>
+            <p class="research-note" id="app-update-mode">启动 30 秒后自动检查，之后每 24 小时检查。</p>
+            <p id="app-update-status" role="status" aria-live="polite">尚未检查更新</p>
+            <progress id="app-update-progress" max="100" aria-label="更新下载进度" hidden></progress>
+            <pre id="app-update-notes"></pre>
+            <div class="research-toolbar"><button type="button" id="app-check-update">检查更新</button><button type="button" id="app-download-update" hidden>下载更新</button><button type="button" id="app-install-update" hidden>重启并安装</button></div>
+        </section>
+        <div class="settings-about-actions">
+            <button class="data-action-btn" id="about-github-btn" type="button" data-external-url="https://github.com/lrwei91/fund-tracker-desktop">查看 GitHub 项目 ↗</button>
+            <button class="data-action-btn secondary" id="about-author-github-btn" type="button" data-external-url="https://github.com/lrwei91">维护者主页 ↗</button>
+            <span class="settings-about-status" id="about-external-status" aria-live="polite"></span>
+        </div>
+        <p class="settings-about-disclaimer">数据仅供参考，不构成投资建议。</p>
+        </section>
+    </div>
+</div>
+
+<div class="modal-overlay" id="app-update-install-overlay" hidden></div>
+<div class="modal-panel app-update-install-dialog" id="app-update-install-dialog" role="dialog" aria-modal="true" aria-labelledby="app-update-install-title" hidden>
+    <div class="modal-header"><h3 id="app-update-install-title">重启并安装更新？</h3></div>
+    <div class="app-update-install-body"><p>应用会先保存配置，再安装已校验的更新并重新启动。自选、持仓、提醒规则和 AI 服务设置会保留。</p><p id="app-update-install-error" role="alert"></p><div class="research-toolbar"><button type="button" id="app-update-install-cancel">暂不安装</button><button type="button" id="app-update-install-confirm">确认重启并安装</button></div></div>
+</div>
+
+<div class="modal-overlay" id="stock-fund-overlay" hidden></div>
+
+<!-- Modules 加载顺序:utils → state → cache → render-* / watchlist 子模块 → app.js 入口 -->
+<script src="web-shell.js"></script>
+<script src="config-schema.js"></script>
+<script src="modules/storage.js"></script>
+<script src="modules/utils.js"></script>
+<script src="modules/ui-state.js"></script>
+<script src="modules/dialog.js"></script>
+<script src="modules/state.js?rev=10001"></script>
+<script src="modules/cache.js"></script>
+<script src="modules/data-client.js"></script>
+<script src="modules/data-status.js"></script>
+<script src="modules/stock-research.js"></script>
+<script src="modules/price-alerts.js"></script>
+<script src="modules/render-alerts.js"></script>
+<script src="modules/render-market.js?rev=10004"></script>
+<script src="modules/render-signals.js"></script>
+<script src="modules/watchlist/_shared.js"></script>
+<script src="modules/watchlist/watch-state.js"></script>
+<script src="modules/watchlist/watch-tabs-ui.js"></script>
+<script src="modules/watchlist/watch-io.js"></script>
+<script src="modules/watchlist/watch-render.js"></script>
+<script src="modules/watchlist/stock-detail.js"></script>
+<script src="modules/watchlist/stock-fundflow.js"></script>
+<script src="modules/watchlist/custom-index.js"></script>
+<script src="modules/watchlist/watchlist.js"></script>
+<script src="modules/render-news.js"></script>
+<script src="modules/refresh-coordinator.js?rev=10002"></script>
+<script src="modules/updates.js"></script>
+<script src="modules/workbench.js"></script>
+<script src="modules/research-reports.js"></script>
+<script src="app.js"></script>
+<script src="modules/web-enhance.js"></script>
+</body>
+</html>

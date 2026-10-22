@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>恭喜发财 · 登录</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #fdfdfa; color: #1a1a1a; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .card { width: min(92vw, 360px); padding: 36px 32px 30px; background: #fff; border: 1.5px solid #1a1a1a;
+    box-shadow: 6px 6px 0 #ffe28a; }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: 2px; }
+  .sub { margin: 0 0 24px; color: #666; font-size: 13px; }
+  label { display: block; font-size: 13px; margin: 14px 0 6px; }
+  input { width: 100%; padding: 11px 12px; font-size: 15px; border: 1.5px solid #1a1a1a; background: #fff; outline: none; }
+  input:focus { box-shadow: 3px 3px 0 #ffe28a; }
+  button { width: 100%; margin-top: 22px; padding: 12px; font-size: 15px; font-weight: 600; letter-spacing: 2px;
+    background: #1a1a1a; color: #ffe28a; border: none; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .error { min-height: 20px; margin-top: 12px; color: #c0272d; font-size: 13px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>恭喜发财</h1>
+  <p class="sub" id="subtitle">正在检查登录状态…</p>
+  <form id="form" class="hidden" autocomplete="off">
+    <label for="password" id="password-label">访问密码</label>
+    <input type="password" id="password" required minlength="6" maxlength="128">
+    <div id="confirm-wrap" class="hidden">
+      <label for="confirm">再输入一次</label>
+      <input type="password" id="confirm" maxlength="128">
+    </div>
+    <button type="submit" id="submit">登录</button>
+    <div class="error" id="error"></div>
+  </form>
+</div>
+<script>
+(function () {
+  var mode = 'login';
+  var form = document.getElementById('form');
+  var subtitle = document.getElementById('subtitle');
+  var password = document.getElementById('password');
+  var confirmWrap = document.getElementById('confirm-wrap');
+  var confirmInput = document.getElementById('confirm');
+  var submit = document.getElementById('submit');
+  var error = document.getElementById('error');
+
+  fetch('/api/auth/status').then(function (r) { return r.json(); }).then(function (s) {
+    if (s.authed) { location.replace('/index.html'); return; }
+    form.classList.remove('hidden');
+    if (!s.setup) {
+      mode = 'setup';
+      subtitle.textContent = '首次使用，请设置访问密码（之后登录用）';
+      document.getElementById('password-label').textContent = '设置访问密码（至少 6 位）';
+      confirmWrap.classList.remove('hidden');
+      confirmInput.required = true;
+      submit.textContent = '设置密码并进入';
+    } else {
+      subtitle.textContent = '输入访问密码进入盯盘台';
+    }
+    password.focus();
+  }).catch(function () { subtitle.textContent = '服务暂时不可用，请稍后重试'; });
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    error.textContent = '';
+    if (mode === 'setup' && password.value !== confirmInput.value) {
+      error.textContent = '两次输入的密码不一致';
+      return;
+    }
+    submit.disabled = true;
+    fetch(mode === 'setup' ? '/api/auth/setup' : '/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password: password.value }),
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (result) {
+        if (result.ok) { location.replace('/index.html'); return; }
+        error.textContent = result.data.message || '操作失败';
+        submit.disabled = false;
+      })
+      .catch(function () { error.textContent = '网络错误，请重试'; submit.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>

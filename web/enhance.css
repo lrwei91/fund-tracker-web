@@ -1,0 +1,123 @@
+/* Web 版增强样式（web-enhance.js）：⌘K 搜索 / 详情多标签 / 指标偏好 / 板块热力图 */
+.cmdk-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(26, 26, 26, .38);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+.cmdk-overlay[hidden] { display: none; }
+.cmdk-box { width: min(92vw, 520px); background: #fff; border: 1.5px solid #1a1a1a; box-shadow: 6px 6px 0 #ffe28a; }
+.cmdk-input { width: 100%; padding: 14px 16px; font-size: 16px; border: none; border-bottom: 1.5px solid #1a1a1a; outline: none; }
+.cmdk-list { max-height: 320px; overflow-y: auto; }
+.cmdk-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; }
+.cmdk-item.active, .cmdk-item:hover { background: #fffbe8; }
+.cmdk-item .cmdk-name { font-weight: 600; }
+.cmdk-item .cmdk-code { color: #999; font-size: 12px; }
+.cmdk-item .cmdk-add { margin-left: auto; border: 1px solid #1a1a1a; background: #ffe28a; padding: 2px 10px; cursor: pointer; font-size: 12px; }
+.cmdk-empty { padding: 18px 16px; color: #999; font-size: 13px; }
+.cmdk-hint { padding: 8px 16px; border-top: 1px solid #eee; color: #999; font-size: 11px; }
+
+.detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; }
+.detail-tabs[hidden] { display: none; }
+.detail-tab { display: inline-flex; align-items: center; border: 1px solid #d8d8d2; background: #fff; }
+.detail-tab.active { border-color: #1a1a1a; box-shadow: 2px 2px 0 #ffe28a; }
+.detail-tab-main { border: none; background: none; cursor: pointer; padding: 5px 4px 5px 10px; font-size: 13px; }
+.detail-tab-main small { color: #999; }
+.detail-tab-close { border: none; background: none; cursor: pointer; padding: 5px 8px 5px 2px; color: #999; font-size: 14px; }
+.detail-tab-close:hover { color: #c0272d; }
+
+.metric-pref { position: relative; margin-left: 10px; }
+.metric-pref-btn { border: 1px solid #d8d8d2; background: #fff; cursor: pointer; font-size: 12px; padding: 3px 8px; }
+.metric-pref-pop { position: absolute; right: 0; top: 26px; z-index: 50; background: #fff; border: 1px solid #1a1a1a;
+  box-shadow: 4px 4px 0 #ffe28a; padding: 10px 12px; display: grid; gap: 6px; min-width: 120px; }
+.metric-pref-pop[hidden] { display: none; }
+.metric-pref-pop label { font-size: 13px; cursor: pointer; white-space: nowrap; }
+
+/* 行业全景融合视图：工具条 + 热力图，与全景列表共用发丝线网格与配色变量 */
+.pano-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 11px; background: var(--color-surface); border-bottom: 1px solid var(--border); }
+.pano-switch { display: inline-flex; border: 1.5px solid #1a1a1a; background: var(--color-surface); }
+.pano-switch button { border: none; background: none; cursor: pointer; font-size: 12px; line-height: 1;
+  padding: 5px 12px; color: var(--text-primary); }
+.pano-switch button + button { border-left: 1.5px solid #1a1a1a; }
+.pano-switch button.active { background: #ffe28a; font-weight: 600; }
+.pano-legend { display: inline-flex; align-items: center; gap: 6px; color: var(--text-tertiary);
+  font-family: var(--mono); font-size: 10px; }
+.pano-legend-bar { display: inline-block; width: 72px; height: 6px;
+  background: linear-gradient(90deg, var(--green), var(--color-surface) 50%, var(--red)); border: 1px solid var(--border); }
+.pano-legend em { font-style: normal; margin-left: 4px; }
+.sector-heatmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 1px; background: var(--border); }
+.sector-heatmap[hidden] { display: none; }
+.heatmap-tile { background: var(--color-surface); padding: 8px 10px; min-height: 52px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-width: 0; }
+.heatmap-name { font-size: 12px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.heatmap-pct { font-family: var(--mono); font-size: 14px; font-weight: 720; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.heatmap-pct.positive { color: var(--red); }
+.heatmap-pct.negative { color: var(--green); }
+.heatmap-empty { grid-column: 1 / -1; background: var(--color-surface); color: var(--text-tertiary);
+  font-size: 12px; text-align: center; padding: 20px 12px; }
+
+/* ============ 市场观察融合改版（轮动 / 热度 / 打板共用一套语言） ============ */
+/* 1) 页签统一为分段控件：工作区页签与面板内页签同一套样式 */
+.electron-app .market-observation .signal-workspace-tabs { display: flex; gap: 0; padding: 0;
+  border: 1px solid var(--border-strong); background: var(--color-surface); margin-bottom: 10px; }
+.electron-app .market-observation .signal-workspace-tab { flex: 1 1 0; min-height: 34px; border: none;
+  border-radius: 0; background: transparent; box-shadow: none; }
+.electron-app .market-observation .signal-workspace-tab + .signal-workspace-tab { border-left: 1px solid var(--border); }
+.electron-app .market-observation .signal-workspace-tab.active { background: #ffe28a; color: #1a1a1a;
+  font-weight: 600; border-color: transparent; box-shadow: none; }
+.electron-app .market-observation .hot-rank-tabs,
+.electron-app .market-observation .limit-up-tabs { display: inline-flex; gap: 0; padding: 0;
+  border: 1px solid var(--border-strong); background: var(--color-surface); margin-bottom: 10px; }
+.electron-app .market-observation .hot-rank-tab,
+.electron-app .market-observation .limit-up-tab { border: none; border-radius: 0; background: transparent;
+  box-shadow: none; min-height: 28px; padding: 4px 12px; }
+.electron-app .market-observation .hot-rank-tab + .hot-rank-tab,
+.electron-app .market-observation .limit-up-tab + .limit-up-tab { border-left: 1px solid var(--border); }
+.electron-app .market-observation .hot-rank-tab.active,
+.electron-app .market-observation .limit-up-tab.active { background: #ffe28a; color: #1a1a1a;
+  font-weight: 600; border-color: transparent; box-shadow: none; }
+
+/* 2) 面板骨架：统一内边距；轮动状态行从横幅改为细信息行 */
+.electron-app .market-observation .hot-rank-section > .card-body,
+.electron-app .market-observation .limit-up-section > .card-body { padding: 10px 12px 12px; }
+.electron-app .market-observation .sector-rotation-section .intraday-screening-status { min-height: 0;
+  padding: 8px 12px; border: none; border-bottom: 1px solid var(--border); border-radius: 0;
+  background: transparent; color: var(--text-tertiary); font-size: 11px; }
+
+/* 3) 轮动卡片：去浮动圆角卡，改发丝线行；统计改为对齐栅格；详情去灰盒改分隔行 */
+.electron-app .market-observation .sector-rotation-list { gap: 0; padding: 0; }
+.electron-app .market-observation .sector-rotation-card { border: none; border-bottom: 1px solid var(--border);
+  border-radius: 0; background: transparent; overflow: visible; }
+.electron-app .market-observation .sector-rotation-card > summary { grid-template-columns: 26px minmax(0, 1fr) 18px;
+  grid-template-rows: auto auto; row-gap: 8px; min-height: 0; padding: 10px 12px; }
+.electron-app .market-observation .sector-rotation-card[open] > summary { background: var(--color-surface-subtle); }
+.electron-app .market-observation .sector-rotation-metrics { grid-column: 1 / -1; grid-row: 2;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+.electron-app .market-observation .sector-rotation-metrics > span { align-items: flex-start; gap: 3px;
+  padding-left: 10px; border-left: 1px solid var(--border); }
+.electron-app .market-observation .sector-rotation-metrics > span:first-child { padding-left: 0; border-left: none; }
+.electron-app .market-observation .sector-rotation-metrics small { font-size: 9px; letter-spacing: .06em; }
+.electron-app .market-observation .sector-rotation-metrics b { font-size: 13px; color: var(--text-primary); }
+.electron-app .market-observation .sector-rotation-toggle { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+.electron-app .market-observation .sector-rotation-detail { grid-template-columns: 1fr; gap: 0;
+  padding: 2px 12px 10px; border-top: 1px solid var(--border); }
+.electron-app .market-observation .sector-rotation-detail > div { background: transparent; border-radius: 0;
+  padding: 9px 0 8px; border-top: 1px solid var(--border); }
+.electron-app .market-observation .sector-rotation-detail > div:first-child { border-top: none; }
+.electron-app .market-observation .sector-rotation-detail small { font-size: 10px; letter-spacing: .08em; }
+.electron-app .market-observation .sector-rotation-detail p { font-size: 12px; line-height: 1.7; margin-top: 3px; }
+
+/* 4) 热榜 / 打板：表头与行距统一 */
+.electron-app .market-observation .hot-rank-table-head,
+.electron-app .market-observation .limit-up-table-head { font-family: var(--mono); font-size: 10px;
+  letter-spacing: .04em; padding-bottom: 6px; margin-bottom: 2px; }
+.electron-app .market-observation .hot-rank-item { border-bottom: 1px solid var(--border); padding-top: 5px; padding-bottom: 5px; }
+.electron-app .market-observation .limit-up-row { border-bottom: 1px solid var(--border); }
+
+/* 5) 宽屏：轮动 summary 回到单行，统计居右成栅格；详情双栏 */
+@media (min-width: 900px) {
+  .electron-app .market-observation .sector-rotation-card > summary {
+    grid-template-columns: 26px minmax(150px, .8fr) minmax(300px, 1.5fr) 18px; grid-template-rows: auto; row-gap: 0; }
+  .electron-app .market-observation .sector-rotation-metrics { grid-column: 3; grid-row: 1; }
+  .electron-app .market-observation .sector-rotation-toggle { grid-column: 4; grid-row: 1; }
+  .electron-app .market-observation .sector-rotation-detail { grid-template-columns: 1fr 1fr; column-gap: 22px; }
+  .electron-app .market-observation .sector-rotation-detail > div:nth-child(-n + 2) { border-top: none; }
+}
