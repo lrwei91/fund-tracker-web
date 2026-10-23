@@ -114,7 +114,9 @@
         Array.prototype.forEach.call(grid.children, function (el) {
             if (el.classList && el.classList.contains('watchlist-item')) {
                 var code = el.getAttribute('data-code');
-                if (code) existing[code] = el;
+                // 防御性去重：同 code 出现多行时只保留第一行，其余立即移除
+                if (code && !existing[code]) existing[code] = el;
+                else if (code) el.remove();
             }
         });
         Array.prototype.forEach.call(Array.prototype.slice.call(grid.children), function (el) {
@@ -126,8 +128,15 @@
             var cells = computeWatchCells(code, prev, showCost);
             var row = existing[code];
             if (row && (!!row.querySelector(':scope > .watchlist-stock-cost')) !== showCost) row = null;
-            if (row) row = updateWatchItemDom(row, cells) || buildWatchItemRow(code, cells);
-            else row = buildWatchItemRow(code, cells);
+            if (row) row = updateWatchItemDom(row, cells);
+            if (!row) {
+                // 结构变化（成本列增删 / 行结构不完整）需要整行重建：
+                // 旧行的 code 仍在新列表里，躲过上方的按 code 清理，
+                // 必须在这里显式移除，否则每次列模式切换都会翻倍出重复行。
+                var staleRow = existing[code];
+                if (staleRow && staleRow.parentNode) staleRow.remove();
+                row = buildWatchItemRow(code, cells);
+            }
             var ref = grid.children[index] || null;
             if (ref !== row) grid.insertBefore(row, ref);
         });
