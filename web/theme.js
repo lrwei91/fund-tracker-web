@@ -1,5 +1,5 @@
-// Shared color-mode controller. It runs before CSS so every Tauri window
-// receives a stable light/dark theme on its first rendered frame.
+// Shared color-mode controller. It runs before CSS so the page receives a
+// stable light/dark theme on its first rendered frame.
 (function (root, factory) {
     var api = factory(root);
     root.AppTheme = api;
@@ -38,20 +38,6 @@
         return normalizeMode(parseSettings(storage.getItem(SETTINGS_KEY)).colorMode);
     }
 
-    function syncNativeWindowTheme(resolved, windowObject) {
-        var tauriWindow = windowObject
-            && windowObject.__TAURI__
-            && windowObject.__TAURI__.window;
-        if (!tauriWindow || typeof tauriWindow.getCurrentWindow !== 'function') return;
-
-        try {
-            var result = tauriWindow.getCurrentWindow().setTheme(resolved);
-            if (result && typeof result.catch === 'function') result.catch(function () {});
-        } catch (_error) {
-            // Browser previews and tests do not expose the native window API.
-        }
-    }
-
     function apply(mode, options) {
         options = options || {};
         currentMode = normalizeMode(mode);
@@ -70,7 +56,6 @@
                 }));
             }
         }
-        syncNativeWindowTheme(resolved, options.window || root);
         return { mode: currentMode, resolved: resolved };
     }
 

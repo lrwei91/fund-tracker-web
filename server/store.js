@@ -11,15 +11,15 @@ const KEYS = [
   'fund_tracker_watch_alert_state', 'fund_tracker_custom_indices', 'fund_tracker_watchlist_cost',
   'fund_tracker_watchlist_remarks', 'fund_tracker_watchlist', 'fund_tracker_watchlist_tabs',
   'fund_tracker_active_watch_tab', 'fund_tracker_hot_rank_source', 'fund_tracker_limit_up_tab',
-  'fund_tracker_holding_clown_mode', 'fund_tracker_ai_settings', 'fund_tracker_price_alerts',
-  'fund_tracker_research_history', 'fund_tracker_report_center', 'fund_tracker_update_settings',
+  'fund_tracker_ai_settings', 'fund_tracker_price_alerts',
+  'fund_tracker_research_history', 'fund_tracker_report_center',
 ];
 const JSON_KEYS = new Set([
   'fund_tracker_settings', 'fund_tracker_collapse_state', 'fund_tracker_alert_settings',
   'fund_tracker_watch_alert_state', 'fund_tracker_custom_indices', 'fund_tracker_watchlist_cost',
   'fund_tracker_watchlist_remarks', 'fund_tracker_watchlist', 'fund_tracker_watchlist_tabs',
   'fund_tracker_ai_settings', 'fund_tracker_price_alerts', 'fund_tracker_research_history',
-  'fund_tracker_report_center', 'fund_tracker_update_settings',
+  'fund_tracker_report_center',
 ]);
 const NATIVE_OWNED = new Set(['fund_tracker_report_center']);
 const CORRUPT_MSG = '配置文件损坏，未覆盖原文件；请修复配置文件后重试';

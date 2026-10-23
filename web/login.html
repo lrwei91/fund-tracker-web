@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>恭喜发财 · 登录</title>
+<script src="theme.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -13,28 +14,40 @@
   h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: 2px; }
   .sub { margin: 0 0 24px; color: #666; font-size: 13px; }
   label { display: block; font-size: 13px; margin: 14px 0 6px; }
-  input { width: 100%; padding: 11px 12px; font-size: 15px; border: 1.5px solid #1a1a1a; background: #fff; outline: none; }
+  input { width: 100%; padding: 11px 12px; font-size: 16px; border: 1.5px solid #1a1a1a; background: #fff; outline: none; }
   input:focus { box-shadow: 3px 3px 0 #ffe28a; }
   button { width: 100%; margin-top: 22px; padding: 12px; font-size: 15px; font-weight: 600; letter-spacing: 2px;
-    background: #1a1a1a; color: #ffe28a; border: none; cursor: pointer; }
+    background: #1a1a1a; color: #ffe28a; border: none; cursor: pointer;
+    transition: background-color .15s ease, transform .05s ease; }
+  button:hover:not(:disabled) { background: #333; }
+  button:active:not(:disabled) { transform: translateY(1px); }
   button:disabled { opacity: .5; cursor: wait; }
   .error { min-height: 20px; margin-top: 12px; color: #c0272d; font-size: 13px; }
   .hidden { display: none; }
+  /* 暗色主题：与主界面同一套配色（theme.js 只负责设置 data-theme） */
+  html[data-theme="dark"] body { background: #171717; color: #f7f7f2; }
+  html[data-theme="dark"] .card { background: #20201f; border-color: #66665f; }
+  html[data-theme="dark"] .sub { color: #c9c9c2; }
+  html[data-theme="dark"] label { color: #c9c9c2; }
+  html[data-theme="dark"] input { background: #171717; border-color: #66665f; color: #f7f7f2; }
+  html[data-theme="dark"] button { background: #ffe28a; color: #1a1a1a; }
+  html[data-theme="dark"] button:hover:not(:disabled) { background: #e6cf70; }
+  html[data-theme="dark"] .error { color: #ff8997; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>恭喜发财</h1>
   <p class="sub" id="subtitle">正在检查登录状态…</p>
-  <form id="form" class="hidden" autocomplete="off">
+  <form id="form" class="hidden">
     <label for="password" id="password-label">访问密码</label>
-    <input type="password" id="password" required minlength="6" maxlength="128">
+    <input type="password" id="password" required minlength="6" maxlength="128" autocomplete="current-password">
     <div id="confirm-wrap" class="hidden">
       <label for="confirm">再输入一次</label>
-      <input type="password" id="confirm" maxlength="128">
+      <input type="password" id="confirm" maxlength="128" autocomplete="new-password">
     </div>
     <button type="submit" id="submit">登录</button>
-    <div class="error" id="error"></div>
+    <div class="error" id="error" role="alert"></div>
   </form>
 </div>
 <script>
@@ -55,6 +68,7 @@
       mode = 'setup';
       subtitle.textContent = '首次使用，请设置访问密码（之后登录用）';
       document.getElementById('password-label').textContent = '设置访问密码（至少 6 位）';
+      password.setAttribute('autocomplete', 'new-password');
       confirmWrap.classList.remove('hidden');
       confirmInput.required = true;
       submit.textContent = '设置密码并进入';

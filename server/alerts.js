@@ -160,11 +160,11 @@ class PriceAlerts {
     this.timer.unref?.();
   }
   async _tick() {
-    let doc;
-    try { doc = this.doc(); } catch { return; }
+    let snapshot;
+    try { snapshot = this.doc(); } catch { return; }
     const nowMs = Date.now();
     const candidates = [];
-    for (const rule of doc.rules) {
+    for (const rule of snapshot.rules) {
       try { validateRule(rule); if (ruleActive(rule, nowMs)) candidates.push(rule.code); } catch { /* 跳过坏规则 */ }
     }
     if (!candidates.length || !tradingWindow()) return;
@@ -175,50 +175,61 @@ class PriceAlerts {
     const today = todayStr();
     const hits = [];
     let dataUnavailable = false;
-    let touched = false;
-    for (const rule of doc.rules) {
-      let valid = true;
-      try { validateRule(rule); } catch { valid = false; }
-      if (!valid || !ruleActive(rule, nowMs)) continue;
-      const quote = quotes?.[rule.code];
-      if (!quotes || !quote || !freshQuote(quote, nowMs)) { dataUnavailable = true; continue; }
-      const values = rule.conditions.map((c) => metricOf(quote, c.field));
-      if (values.some((v) => v == null)) { dataUnavailable = true; continue; }
-      const prevMatched = rule.lastMatched === true;
-      const checks = rule.conditions.map((c, i) => matched(values[i], Array.isArray(rule.lastValues) ? rule.lastValues[i] ?? null : null, c.op, c.value));
-      const hit = rule.logic === 'or' ? checks.some(Boolean) : checks.every(Boolean);
-      rule.lastMatched = hit;
-      rule.lastValues = values;
-      touched = true;
-      if (rule.countDate !== today) { rule.countDate = today; rule.countToday = 0; }
-      if (!hit) continue;
-      if (rule.edgeOnly && prevMatched) continue;
-      if (rule.lastTriggerAt && nowMs - Date.parse(rule.lastTriggerAt) < rule.cooldownMinutes * 60 * 1000) continue;
-      if (rule.countToday >= rule.maxPerDay) continue;
-      rule.lastTriggerAt = now.toISOString();
-      rule.countToday += 1;
-      if (rule.once) rule.enabled = false;
-      const detail = rule.conditions
-        .map((c, i) => (checks[i] ? `${FIELD_LABEL[c.field] || c.field} ${OP_LABEL[c.op] || c.op} ${c.value}` : null))
-        .filter(Boolean).join('；');
-      hits.push({
-        id: crypto.randomUUID(), ruleId: rule.id, ruleName: rule.name, code: rule.code,
-        name: quote.name, time: now.toISOString(), price: quote.priceValue,
-        changePct: quote.changePercent, quoteTime: quote.quoteTimeRaw, detail,
-      });
-    }
-    doc.lastCheckedAt = now.toISOString();
-    doc.status = dataUnavailable ? 'data_unavailable' : 'monitoring';
-    for (const h of hits) { doc.history.unshift(h); }
-    doc.history = doc.history.slice(0, 100);
+    // 在存储事务内基于最新文档重算并落盘：getQuotes 期间（可达数百毫秒）用户的
+    // 保存/启停/删除先落盘时，不会被本 tick 拿着的旧快照整体覆盖（lost-update）。
+    let saved = false;
     try {
-      this._save(doc);
+      this.store.updateData(KEY, (old) => {
+        const doc = (old && typeof old === 'object' && Array.isArray(old.rules) && Array.isArray(old.history))
+          ? { rules: old.rules, history: old.history, lastCheckedAt: old.lastCheckedAt ?? null, status: old.status || '' }
+          : emptyDoc();
+        dataUnavailable = false;
+        for (const rule of doc.rules) {
+          let valid = true;
+          try { validateRule(rule); } catch { valid = false; }
+          if (!valid || !ruleActive(rule, nowMs)) continue;
+          const quote = quotes?.[rule.code];
+          if (!quotes || !quote || !freshQuote(quote, nowMs)) { dataUnavailable = true; continue; }
+          const values = rule.conditions.map((c) => metricOf(quote, c.field));
+          if (values.some((v) => v == null)) { dataUnavailable = true; continue; }
+          const prevMatched = rule.lastMatched === true;
+          const checks = rule.conditions.map((c, i) => matched(values[i], Array.isArray(rule.lastValues) ? rule.lastValues[i] ?? null : null, c.op, c.value));
+          const hit = rule.logic === 'or' ? checks.some(Boolean) : checks.every(Boolean);
+          rule.lastMatched = hit;
+          rule.lastValues = values;
+          if (rule.countDate !== today) { rule.countDate = today; rule.countToday = 0; }
+          if (!hit) continue;
+          if (rule.edgeOnly && prevMatched) continue;
+          if (rule.lastTriggerAt && nowMs - Date.parse(rule.lastTriggerAt) < rule.cooldownMinutes * 60 * 1000) continue;
+          if (rule.countToday >= rule.maxPerDay) continue;
+          rule.lastTriggerAt = now.toISOString();
+          rule.countToday += 1;
+          if (rule.once) rule.enabled = false;
+          const detail = rule.conditions
+            .map((c, i) => (checks[i] ? `${FIELD_LABEL[c.field] || c.field} ${OP_LABEL[c.op] || c.op} ${c.value}` : null))
+            .filter(Boolean).join('；');
+          hits.push({
+            id: crypto.randomUUID(), ruleId: rule.id, ruleName: rule.name, code: rule.code,
+            name: quote.name, time: now.toISOString(), price: quote.priceValue,
+            changePct: quote.changePercent, quoteTime: quote.quoteTimeRaw, detail,
+          });
+        }
+        doc.lastCheckedAt = now.toISOString();
+        doc.status = dataUnavailable ? 'data_unavailable' : 'monitoring';
+        for (const h of hits) { doc.history.unshift(h); }
+        doc.history = doc.history.slice(0, 100);
+        return doc;
+      });
+      saved = true;
     } catch {
+      saved = false;
+    }
+    if (!saved) {
       if (hits.length) this.emit('price-alert-error', { message: '提醒状态无法保存，未发送告警' });
       return;
     }
     for (const h of hits) this.emit('price-alert-hit', h);
-    void touched;
   }
 }
+
 module.exports = { PriceAlerts };

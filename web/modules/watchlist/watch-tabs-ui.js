@@ -26,7 +26,7 @@
             var removable = !W.isFixedWatchTab(tab.id);
             return '<button class="watchlist-tab' + (isActive ? ' active' : '') + '" data-watch-tab="' + utils.escapeHtml(tab.id) + '" type="button">' +
                 '<span>' + utils.escapeHtml(tab.name) + '</span>' +
-                (removable ? '<span class="watchlist-tab-remove" data-remove-watch-tab="' + utils.escapeHtml(tab.id) + '" aria-label="删除分组">×</span>' : '') +
+                (removable ? '<span class="watchlist-tab-remove" data-remove-watch-tab="' + utils.escapeHtml(tab.id) + '" role="button" tabindex="0" aria-label="删除分组 ' + utils.escapeHtml(tab.name) + '" title="删除分组">×</span>' : '') +
                 '</button>';
         }).join('');
         container.querySelectorAll('.watchlist-tab').forEach(function (btn) {
@@ -43,6 +43,14 @@
                     return;
                 }
                 W.switchWatchTab(btn.getAttribute('data-watch-tab'));
+            });
+        });
+        container.querySelectorAll('.watchlist-tab-remove').forEach(function (btn) {
+            btn.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                e.stopPropagation();
+                W.removeWatchTab(btn.getAttribute('data-remove-watch-tab'));
             });
         });
     }

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 32 32">
+  <!-- 品牌标：三根阳线，黄底墨线，主界面明暗两套主题下都可读 -->
+  <rect width="32" height="32" rx="7" fill="#ffe28a"/>
+  <g stroke="#1a1a1a" stroke-width="1.6" stroke-linecap="round">
+    <path d="M9 6v3M9 17v7"/>
+    <path d="M15.5 9.5v2M15.5 20.5v3"/>
+    <path d="M22 5.5v4M22 16.5v7"/>
+  </g>
+  <g fill="#1a1a1a">
+    <rect x="6.5" y="9" width="5" height="8" rx="1"/>
+    <rect x="13" y="11.5" width="5" height="9" rx="1"/>
+    <rect x="19.5" y="9.5" width="5" height="7" rx="1"/>
+  </g>
+</svg>

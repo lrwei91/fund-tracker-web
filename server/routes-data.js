@@ -713,7 +713,7 @@ function createDataRoutes(gw) {
 
   // 东财快讯：行含 cursor 供翻页。
   async function loadEmNews(limit, cursor) {
-    const url = `https://np-weblist.eastmoney.com/comm/web/getFastNewsList?client=web&biz=web_724&fastColumn=102&sortEnd=${urlEncode(cursor)}&pageSize=${limit}&req_trace=${crypto.randomUUID()}`;
+    const url = `https://np-weblist.eastmoney.com/comm/web/getFastNewsList?client=web&biz=web_724&fastColumn=102&sortEnd=${urlEncode(cursor)}&pageSize=${limit}`;
     const v = await gwJson({
       url,
       em: true,
@@ -1021,7 +1021,7 @@ function createDataRoutes(gw) {
         },
       }),
     );
-    const url = `https://search-api-web.eastmoney.com/search/jsonp?cb=jQuery_fund_tracker_stock_news&param=${param}&_=${Date.now()}`;
+    const url = `https://search-api-web.eastmoney.com/search/jsonp?cb=jQuery_fund_tracker_stock_news&param=${param}`;
     let text;
     try {
       text = await gwText({
@@ -1345,12 +1345,16 @@ function createDataRoutes(gw) {
       reason = error.message;
     }
     const base = shanghaiTodayDate();
-    for (let offset = 0; offset < 7; offset += 1) {
+    // 交易所数据盘后发布：回退最近 3 个交易日足够（覆盖周末），两所并行探测，
+    // 避免 7 天串行 × 双源 await 把单请求拖到分钟级。
+    for (let offset = 0; offset < 3; offset += 1) {
       const d = new Date(base.getTime());
       d.setUTCDate(d.getUTCDate() - offset);
       const date = fmtYmdDash(d);
-      const dzse = await loadDzse(date).catch(() => []);
-      const sse = await loadSse(date).catch(() => []);
+      const [dzse, sse] = await Promise.all([
+        loadDzse(date).catch(() => []),
+        loadSse(date).catch(() => []),
+      ]);
       const stocks = [...dzse, ...sse];
       if (stocks.length > 0) {
         return okExtra(
@@ -1900,52 +1904,57 @@ function createDataRoutes(gw) {
     }
   }
 
-  async function capitalHkex() {
-    const base = Date.now();
-    for (let offset = 0; offset < 7; offset += 1) {
-      const key = fmtYmd(shanghaiDate(base - offset * 86400000));
-      try {
-        const text = await gwText({
-          url: `https://www.hkex.com.hk/chi/csm/DailyStat/data_tab_daily_${key}c.js`,
-          headers: { referer: 'https://www.hkex.com.hk/' },
-          cacheTtl: 1800,
-        });
-        const start = text.indexOf('[');
-        const end = text.lastIndexOf(']');
-        if (start < 0 || end < start) continue;
-        const rows = JSON.parse(text.slice(start, end + 1));
-        if (!Array.isArray(rows)) continue;
-        const north = rows.filter(
-          (row) => row && typeof row.market === 'string' && row.market.includes('Northbound'),
-        );
-        let total = 0;
-        let any = false;
-        for (const row of north) {
-          const cell =
-            row.content && row.content[0] && row.content[0].table &&
-            row.content[0].table.tr && row.content[0].table.tr[0] &&
-            row.content[0].table.tr[0].td && row.content[0].table.tr[0].td[0]
-              ? row.content[0].table.tr[0].td[0][0]
-              : undefined;
-          const n = numStrip(cell);
-          if (n !== null) {
-            total += n;
-            any = true;
-          }
-        }
-        if (any && total > 0) {
-          return {
-            available: true,
-            value: `${(total / 100).toFixed(2)}亿`,
-            isPositive: null,
-            date: north.length > 0 && north[0].date !== undefined ? north[0].date : null,
-          };
-        }
-      } catch {
-        // try previous day
+  async function capitalHkexDay(offsetMs) {
+    const key = fmtYmd(shanghaiDate(Date.now() - offsetMs));
+    const text = await gwText({
+      url: `https://www.hkex.com.hk/chi/csm/DailyStat/data_tab_daily_${key}c.js`,
+      headers: { referer: 'https://www.hkex.com.hk/' },
+      cacheTtl: 1800,
+    });
+    const start = text.indexOf('[');
+    const end = text.lastIndexOf(']');
+    if (start < 0 || end < start) return null;
+    const rows = JSON.parse(text.slice(start, end + 1));
+    if (!Array.isArray(rows)) return null;
+    const north = rows.filter(
+      (row) => row && typeof row.market === 'string' && row.market.includes('Northbound'),
+    );
+    let total = 0;
+    let any = false;
+    for (const row of north) {
+      const cell =
+        row.content && row.content[0] && row.content[0].table &&
+        row.content[0].table.tr && row.content[0].table.tr[0] &&
+        row.content[0].table.tr[0].td && row.content[0].table.tr[0].td[0]
+          ? row.content[0].table.tr[0].td[0][0]
+          : undefined;
+      const n = numStrip(cell);
+      if (n !== null) {
+        total += n;
+        any = true;
       }
     }
-    return { available: false, value: '--', isPositive: null, date: '' };
+    if (any && total > 0) {
+      return {
+        available: true,
+        value: `${(total / 100).toFixed(2)}亿`,
+        isPositive: null,
+        date: north.length > 0 && north[0].date !== undefined ? north[0].date : null,
+      };
+    }
+    return null;
+  }
+
+  async function capitalHkex() {
+    // 港交所日数据盘后才发布：并行探最近 3 个交易日取最新可得，
+    // 不再 7 天串行回退（停更日会把 /market-data?type=capital 拖住几十秒）。
+    const days = await Promise.all([
+      capitalHkexDay(0).catch(() => null),
+      capitalHkexDay(86400000).catch(() => null),
+      capitalHkexDay(2 * 86400000).catch(() => null),
+    ]);
+    const best = days.find((day) => day != null);
+    return best || { available: false, value: '--', isPositive: null, date: '' };
   }
 
   async function marketCapitalEnv() {
@@ -2207,7 +2216,8 @@ function createDataRoutes(gw) {
   async function loadKlineTencent(code, days) {
     const s = symbol.tencentSymbol(code);
     const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${s},day,,,${days},qfq`;
-    const v = await gwJson({ url, headers: { referer: 'https://gu.qq.com/' } });
+    // 日K盘中只有最后一根在变：60s 缓存即可显著减少 radar / 研究快照的重复上游往返。
+    const v = await gwJson({ url, headers: { referer: 'https://gu.qq.com/' }, cacheTtl: 60 });
     const inner = v && v.data ? v.data[s] : undefined;
     const rows =
       inner && Array.isArray(inner.qfqday)

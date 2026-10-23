@@ -38,15 +38,10 @@
             mainInterval: document.getElementById('refresh-interval-main'),
             signalInterval: document.getElementById('refresh-interval-signal'),
             newsInterval: document.getElementById('refresh-interval-news'),
-            holdingColorMode: document.getElementById('holding-color-mode'),
-            holdingOpacity: document.getElementById('holding-opacity-input'),
-            holdingOpacityValue: document.getElementById('holding-opacity-value'),
             alertEnabled: document.getElementById('alert-enabled-toggle'),
             alertThreshold: document.getElementById('alert-threshold-input'),
             alertOpacity: document.getElementById('alert-opacity-input'),
             alertOpacityValue: document.getElementById('alert-opacity-value'),
-            bullSoundEnabled: document.getElementById('bull-sound-toggle'),
-            bearSoundEnabled: document.getElementById('bear-sound-toggle'),
         };
     }
 
@@ -68,8 +63,6 @@
         state.refreshSecondsMain = parseInt(normalizeOptionValue(saved.mainInterval, ['5', '10', '30', '60'], state.refreshSecondsMain), 10);
         state.refreshSecondsSignal = parseInt(normalizeOptionValue(saved.signalInterval, ['900', '1800', '3600', '7200'], state.refreshSecondsSignal), 10);
         state.refreshSecondsNews = parseInt(normalizeOptionValue(saved.newsInterval, ['60', '600', '1800'], state.refreshSecondsNews), 10);
-        state.holdingColorMode = normalizeOptionValue(saved.holdingColorMode, ['market', 'white'], state.holdingColorMode);
-        state.holdingOpacity = normalizePercentValue(saved.holdingOpacity, state.holdingOpacity);
     }
 
     function saveSettings() {
@@ -80,8 +73,6 @@
                 mainInterval: state.refreshSecondsMain,
                 signalInterval: state.refreshSecondsSignal,
                 newsInterval: state.refreshSecondsNews,
-                holdingColorMode: state.holdingColorMode,
-                holdingOpacity: state.holdingOpacity,
             }));
         } catch (e) {}
     }
@@ -93,15 +84,10 @@
         if (controls.mainInterval) controls.mainInterval.value = String(state.refreshSecondsMain);
         if (controls.signalInterval) controls.signalInterval.value = String(state.refreshSecondsSignal);
         if (controls.newsInterval) controls.newsInterval.value = String(state.refreshSecondsNews);
-        if (controls.holdingColorMode) controls.holdingColorMode.value = state.holdingColorMode;
-        if (controls.holdingOpacity) controls.holdingOpacity.value = String(state.holdingOpacity);
-        if (controls.holdingOpacityValue) controls.holdingOpacityValue.textContent = state.holdingOpacity + '%';
         if (controls.alertEnabled) controls.alertEnabled.checked = state.alertEnabled;
         if (controls.alertThreshold) controls.alertThreshold.value = String(state.alertThreshold);
         if (controls.alertOpacity) controls.alertOpacity.value = String(Math.round(state.alertOpacity * 100));
         if (controls.alertOpacityValue) controls.alertOpacityValue.textContent = Math.round(state.alertOpacity * 100) + '%';
-        if (controls.bullSoundEnabled) controls.bullSoundEnabled.checked = state.bullSoundEnabled;
-        if (controls.bearSoundEnabled) controls.bearSoundEnabled.checked = state.bearSoundEnabled;
     }
 
     // ============================================================
@@ -345,40 +331,6 @@
         });
     }
 
-    function initHoldingWindowButton() {
-        var btn = document.getElementById('holding-window-btn');
-        if (!btn || !window.shell || typeof window.shell.openHoldingWindow !== 'function') return;
-
-        btn.hidden = false;
-        btn.addEventListener('click', async function () {
-            if (btn.disabled) return;
-            var oldText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = '打开中';
-            var coordinator = window.AppRefreshCoordinator;
-            var refreshPromise = coordinator && typeof coordinator.setHoldingVisible === 'function'
-                ? coordinator.setHoldingVisible(true)
-                : Promise.resolve();
-            try {
-                var result = await window.shell.openHoldingWindow();
-                if (!result || !result.ok) throw new Error(result && result.error ? result.error : 'open failed');
-                await refreshPromise;
-                if (coordinator && typeof coordinator.syncCurrentHoldingWidget === 'function') {
-                    await coordinator.syncCurrentHoldingWidget();
-                }
-            } catch (e) {
-                if (coordinator && typeof coordinator.setHoldingVisible === 'function') {
-                    coordinator.setHoldingVisible(false);
-                }
-                btn.textContent = '失败';
-                setTimeout(function () { btn.textContent = oldText; }, 1200);
-            } finally {
-                btn.disabled = false;
-                if (btn.textContent !== oldText && btn.textContent !== '失败') btn.textContent = oldText;
-            }
-        });
-    }
-
     // ============================================================
     // 事件绑定 (settings 控件 + add 按钮 + 编辑按钮 + 刷新按钮)
     // ============================================================
@@ -396,53 +348,36 @@
             });
         }
 
-        document.getElementById('auto-refresh-toggle').addEventListener('change', function (e) {
+        var autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+        if (autoRefreshToggle) autoRefreshToggle.addEventListener('change', function (e) {
             state.isAutoRefresh = e.target.checked;
             saveSettings();
             if (state.isAutoRefresh) { startAllAutoRefresh(); } else { stopAllAutoRefresh(); }
         });
 
-        document.getElementById('refresh-interval-main').addEventListener('change', function (e) {
+        var refreshIntervalMain = document.getElementById('refresh-interval-main');
+        if (refreshIntervalMain) refreshIntervalMain.addEventListener('change', function (e) {
             state.refreshSecondsMain = parseInt(e.target.value, 10);
             saveSettings();
             if (state.isAutoRefresh) { startMainAutoRefresh(); }
         });
 
-        document.getElementById('refresh-interval-signal').addEventListener('change', function (e) {
+        var refreshIntervalSignal = document.getElementById('refresh-interval-signal');
+        if (refreshIntervalSignal) refreshIntervalSignal.addEventListener('change', function (e) {
             state.refreshSecondsSignal = parseInt(e.target.value, 10);
             saveSettings();
             if (state.isAutoRefresh) { startSignalAutoRefresh(); }
         });
 
-        document.getElementById('refresh-interval-news').addEventListener('change', function (e) {
+        var refreshIntervalNews = document.getElementById('refresh-interval-news');
+        if (refreshIntervalNews) refreshIntervalNews.addEventListener('change', function (e) {
             state.refreshSecondsNews = parseInt(e.target.value, 10);
             saveSettings();
             if (state.isAutoRefresh) { startNewsAutoRefresh(); }
         });
 
-        var holdingColorModeSelect = document.getElementById('holding-color-mode');
-        if (holdingColorModeSelect) {
-            holdingColorModeSelect.addEventListener('change', function (e) {
-                state.holdingColorMode = normalizeOptionValue(e.target.value, ['market', 'white'], 'market');
-                e.target.value = state.holdingColorMode;
-                saveSettings();
-            });
-        }
-
-        var holdingOpacityInput = document.getElementById('holding-opacity-input');
-        var holdingOpacityValue = document.getElementById('holding-opacity-value');
-        if (holdingOpacityInput) {
-            var commitHoldingOpacity = function (e) {
-                state.holdingOpacity = normalizePercentValue(e.target.value, 100);
-                e.target.value = String(state.holdingOpacity);
-                if (holdingOpacityValue) holdingOpacityValue.textContent = state.holdingOpacity + '%';
-                saveSettings();
-            };
-            holdingOpacityInput.addEventListener('input', commitHoldingOpacity);
-            holdingOpacityInput.addEventListener('change', commitHoldingOpacity);
-        }
-
-        document.getElementById('alert-enabled-toggle').addEventListener('change', function (e) {
+        var alertEnabledToggle = document.getElementById('alert-enabled-toggle');
+        if (alertEnabledToggle) alertEnabledToggle.addEventListener('change', function (e) {
             state.alertEnabled = !!e.target.checked;
             if (window.AppAlerts) window.AppAlerts.saveAlertSettings();
         });
@@ -450,25 +385,14 @@
         var alertOpacityInput = document.getElementById('alert-opacity-input');
         var alertOpacityValue = document.getElementById('alert-opacity-value');
         if (alertOpacityInput) {
-            var commitAlertOpacity = function (e) {
+            alertOpacityInput.addEventListener('input', function (e) {
                 state.alertOpacity = Math.max(0.2, Math.min(1, Number(e.target.value) / 100));
                 if (alertOpacityValue) alertOpacityValue.textContent = Math.round(state.alertOpacity * 100) + '%';
-                if (window.AppAlerts) window.AppAlerts.saveAlertSettings();
-            };
-            alertOpacityInput.addEventListener('input', commitAlertOpacity);
-            alertOpacityInput.addEventListener('change', commitAlertOpacity);
-        }
-
-        var bindAlertSoundToggle = function (id, stateKey) {
-            var control = document.getElementById(id);
-            if (!control) return;
-            control.addEventListener('change', function (e) {
-                state[stateKey] = !!e.target.checked;
+            });
+            alertOpacityInput.addEventListener('change', function () {
                 if (window.AppAlerts) window.AppAlerts.saveAlertSettings();
             });
-        };
-        bindAlertSoundToggle('bull-sound-toggle', 'bullSoundEnabled');
-        bindAlertSoundToggle('bear-sound-toggle', 'bearSoundEnabled');
+        }
 
         var bindAlertPreview = function (id, direction) {
             var button = document.getElementById(id);
@@ -484,28 +408,34 @@
 
         var thresholdInput = document.getElementById('alert-threshold-input');
         if (thresholdInput) {
-            var commitThreshold = function () {
-                var v = parseFloat(thresholdInput.value);
-                if (!isFinite(v) || v <= 0) v = 2;
-                if (v > 50) v = 50;
-                state.alertThreshold = v;
-                thresholdInput.value = String(v);
-                if (window.AppAlerts) window.AppAlerts.saveAlertSettings();
-            };
             thresholdInput.addEventListener('change', commitThreshold);
-            thresholdInput.addEventListener('blur', commitThreshold);
+        }
+        function commitThreshold() {
+            var v = parseFloat(thresholdInput.value);
+            if (!isFinite(v) || v <= 0) v = 2;
+            if (v > 50) v = 50;
+            state.alertThreshold = v;
+            thresholdInput.value = String(v);
+            if (window.AppAlerts) window.AppAlerts.saveAlertSettings();
         }
 
-        document.getElementById('add-stock-btn').addEventListener('click', function () {
+        var addStockBtn = document.getElementById('add-stock-btn');
+        if (addStockBtn) addStockBtn.addEventListener('click', function () {
             if (window.AppWatchlist) window.AppWatchlist.addStockToWatchlist();
         });
-        document.getElementById('add-watch-tab-btn').addEventListener('click', function () {
+        var addWatchTabBtn = document.getElementById('add-watch-tab-btn');
+        if (addWatchTabBtn) addWatchTabBtn.addEventListener('click', function () {
             if (window.AppWatchlist) window.AppWatchlist.addWatchTab();
         });
-        document.getElementById('stock-code-input').addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && window.AppWatchlist) window.AppWatchlist.addStockToWatchlist();
+        var stockCodeInput = document.getElementById('stock-code-input');
+        if (stockCodeInput) stockCodeInput.addEventListener('keydown', function (e) {
+            // 输入法组词期间的 Enter（含 keyCode 229 兼容旧浏览器）是确认候选词，不是提交。
+            if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && window.AppWatchlist) {
+                window.AppWatchlist.addStockToWatchlist();
+            }
         });
-        document.getElementById('refresh-btn').addEventListener('click', function () {
+        var refreshBtn = document.getElementById('refresh-btn');
+        if (refreshBtn) refreshBtn.addEventListener('click', function () {
             manualRefreshAll();
         });
         var sectorRotationRunBtn = document.getElementById('sector-rotation-run-btn');
@@ -621,7 +551,6 @@
         initSettingsViews();
         if (window.AppResearch) window.AppResearch.init();
         if (window.AppPriceAlerts) window.AppPriceAlerts.init();
-        if (window.AppUpdates) window.AppUpdates.init();
         if (window.AppReports) window.AppReports.init();
         if (window.AppSignals) window.AppSignals.initHotRankTabs();
         if (window.AppWatchlist) window.AppWatchlist.initWatchlistTabs();
@@ -634,7 +563,6 @@
         initDataActions();
         initStorageStatus();
         initAboutActions();
-        initHoldingWindowButton();
         bindEvents();
         initUiStateRetries();
         if (window.AppWatchlist) window.AppWatchlist.initStockFundFlowModal();

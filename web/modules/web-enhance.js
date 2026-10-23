@@ -14,12 +14,13 @@
 
     /* ---------------- 1) ⌘K 全局搜索 ---------------- */
     var cmdk = null, cmdkInput = null, cmdkList = null, cmdkItems = [], cmdkActive = 0, cmdkTimer = null;
+    var cmdkComposing = false;
     function buildCmdk() {
         if (cmdk) return;
         cmdk = document.createElement('div');
         cmdk.className = 'cmdk-overlay';
         cmdk.hidden = true;
-        cmdk.innerHTML = '<div class="cmdk-box" role="dialog" aria-label="全局搜索">'
+        cmdk.innerHTML = '<div class="cmdk-box" role="dialog" aria-modal="true" aria-label="全局搜索">'
             + '<input class="cmdk-input" type="text" placeholder="搜索股票代码或名称（Enter 打开详情）" autocomplete="off">'
             + '<div class="cmdk-list" role="listbox"></div>'
             + '<div class="cmdk-hint">↑↓ 选择 · Enter 打开详情 · 点 + 加入当前分组 · Esc 关闭</div>'
@@ -28,7 +29,16 @@
         cmdkInput = cmdk.querySelector('.cmdk-input');
         cmdkList = cmdk.querySelector('.cmdk-list');
         cmdk.addEventListener('mousedown', function (e) { if (e.target === cmdk) closeCmdk(); });
+        // 中文输入法：组词过程中的 input 事件不触发搜索（拼音逐字母会打出大量无效请求），
+        // compositionend 后统一搜一次上屏结果。
+        cmdkInput.addEventListener('compositionstart', function () { cmdkComposing = true; });
+        cmdkInput.addEventListener('compositionend', function () {
+            cmdkComposing = false;
+            clearTimeout(cmdkTimer);
+            cmdkTimer = setTimeout(runCmdkSearch, 120);
+        });
         cmdkInput.addEventListener('input', function () {
+            if (cmdkComposing) return;
             clearTimeout(cmdkTimer);
             cmdkTimer = setTimeout(runCmdkSearch, 220);
         });
@@ -39,6 +49,7 @@
                 cmdkActive = (cmdkActive + (e.key === 'ArrowDown' ? 1 : -1) + cmdkItems.length) % cmdkItems.length;
                 renderCmdk();
             } else if (e.key === 'Enter') {
+                if (e.isComposing || e.keyCode === 229) return; // 输入法确认候选词
                 var item = cmdkItems[cmdkActive];
                 if (item) { openDetail(item.code); closeCmdk(); }
             }
@@ -48,7 +59,7 @@
         buildCmdk();
         cmdk.hidden = false;
         cmdkInput.value = '';
-        cmdkItems = []; cmdkActive = 0;
+        cmdkItems = []; cmdkActive = 0; cmdkComposing = false;
         renderCmdk();
         setTimeout(function () { cmdkInput.focus(); }, 0);
     }

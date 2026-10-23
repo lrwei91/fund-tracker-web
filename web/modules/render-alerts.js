@@ -20,8 +20,6 @@
                 enabled: state.alertEnabled,
                 threshold: state.alertThreshold,
                 opacity: state.alertOpacity,
-                bullSoundEnabled: state.bullSoundEnabled,
-                bearSoundEnabled: state.bearSoundEnabled,
             }));
         } catch (e) {}
     }
@@ -64,11 +62,12 @@
         container.appendChild(item);
     }
 
-    function renderAlertToast(alert) {
+    function renderAlertToast(alert, options) {
         var container = document.getElementById('alert-toast-container');
         if (!container) return;
         if (!alert || typeof alert.price !== 'number') return;
-        if (typeof utils.isMarketOpenWindow === 'function' && !utils.isMarketOpenWindow()) return;
+        // 实时告警只在交易时段弹（避免盘后旧行情反复触发）；预览测试不受此限制。
+        if (!(options && options.force) && typeof utils.isMarketOpenWindow === 'function' && !utils.isMarketOpenWindow()) return;
 
         // 限制最大条数,超过则移除最早
         while (container.children.length >= KEYS.ALERT_TOAST_MAX) {
@@ -147,7 +146,6 @@
         if (window.shell && typeof window.shell.showStockAlert === 'function') {
             var desktopAlert = Object.assign({}, alert, {
                 opacity: state.alertOpacity,
-                soundEnabled: alert.changePct >= 0 ? state.bullSoundEnabled : state.bearSoundEnabled,
             });
             window.shell.showStockAlert(desktopAlert).then(function (result) {
                 if (!result || result.ok !== true) renderAlertToast(alert);
@@ -161,7 +159,8 @@
         var rising = direction !== 'falling';
         var basePrice = 10;
         var changePct = rising ? state.alertThreshold : -state.alertThreshold;
-        pushAlertToast({
+        // 预览是界面演示：直接走站内 toast 且不受交易时段门控（实时告警仍受门控）。
+        renderAlertToast({
             code: 'DEMO',
             name: '提醒测试',
             price: basePrice * (1 + changePct / 100),
@@ -172,7 +171,7 @@
             baseLabel: '基准价',
             threshold: state.alertThreshold,
             time: new Date().toISOString(),
-        });
+        }, { force: true });
     }
 
     function removeAlertToast(toast, immediate) {
@@ -200,10 +199,13 @@
         if (!container) return;
         if (!message) return;
 
-        while (container.children.length >= KEYS.ALERT_TOAST_MAX) {
-            var first = container.firstChild;
-            if (!first) break;
-            removeAlertToast(first, true);
+        // 状态提示只驱逐旧的状态提示，绝不动涨跌告警——
+        // 2.5s 的「已保存」不该把 20s TTL 的告警挤掉（盯盘场景告警优先）。
+        var statusToasts = Array.prototype.filter.call(container.children, function (el) {
+            return el.getAttribute('data-toast-kind') === 'status';
+        });
+        while (statusToasts.length >= Math.min(2, KEYS.ALERT_TOAST_MAX)) {
+            removeAlertToast(statusToasts.shift(), true);
         }
 
         var variant = type === 'error' ? 'alert-down' : 'alert-info';
@@ -216,6 +218,7 @@
 
         var toast = document.createElement('div');
         toast.className = 'alert-toast ' + variant;
+        toast.setAttribute('data-toast-kind', 'status');
 
         var main = document.createElement('div');
         main.className = 'alert-toast-main';

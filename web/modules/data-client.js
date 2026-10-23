@@ -31,11 +31,14 @@
         return Object.fromEntries(entries);
     }
 
-    function stableKey(path, params) {
+    function stableKey(path, params, cacheMode) {
         var query = new URLSearchParams(normalizeParams(params));
-        return path + '?' + Array.from(query.entries()).sort(function (a, b) {
+        var key = path + '?' + Array.from(query.entries()).sort(function (a, b) {
             return a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]);
         }).map(function (entry) { return entry[0] + '=' + entry[1]; }).join('&');
+        // 缓存模式参与去重键：手动强刷（bypass_fresh）不复用在途的普通请求，
+        // 否则「点了刷新」拿到的仍是刷新前的数据。上游侧由 gateway 在途合并兜底。
+        return cacheMode ? key + '#' + cacheMode : key;
     }
 
     function normalizeFailure(path, data) {
@@ -51,10 +54,10 @@
         });
     }
 
+    var FETCH_TIMEOUT_MS = 30000;
     function fetchData(path, params, options) {
-        var key = stableKey(path, params);
-        // force 只控制服务端 gateway 是否绕过 fresh cache；同一查询已有在途请求时
-        // 仍然复用它，避免手动刷新制造第二条上游请求。
+        var cacheMode = options && options.cacheMode ? String(options.cacheMode) : '';
+        var key = stableKey(path, params, cacheMode);
         if (inflight[key]) return inflight[key];
         var work = Promise.resolve().then(function () {
             var payload = {
@@ -65,25 +68,35 @@
                 cacheMode: options.cacheMode,
                 cycleId: options.cycleId,
             };
+            // 超时兜底：网络半开/代理挂起时 fetch 可能永不 settle。不清理的话
+            // inflight 里的死 promise 会让同查询永久复用失败，轮询整体假死。
+            var controller = typeof AbortController === 'function' ? new AbortController() : null;
+            var timer = controller ? setTimeout(function () {
+                controller.abort();
+            }, FETCH_TIMEOUT_MS) : null;
             return fetch('/api/fetch', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify(payload),
+                signal: controller ? controller.signal : undefined,
             }).then(function (res) {
                 if (res.status === 401) {
                     if (location.pathname !== '/login.html') location.href = '/';
                     throw new AppDataError('登录已失效，请重新登录', { route: path, code: 'unauthorized', retryable: false });
                 }
                 return res.json();
+            }).finally(function () {
+                if (timer) clearTimeout(timer);
             });
         }).then(function (data) {
             if (!data || data.success === false) throw normalizeFailure(path, data);
             return data;
         }).catch(function (error) {
             if (error instanceof AppDataError) throw error;
-            throw new AppDataError(error && error.message ? error.message : '数据接口不可用', {
+            var aborted = error && (error.name === 'AbortError' || /aborted/i.test(String(error.message || '')));
+            throw new AppDataError(aborted ? '请求超时，请稍后重试' : (error && error.message ? error.message : '数据接口不可用'), {
                 route: path,
-                code: 'bridge_error',
+                code: aborted ? 'timeout' : 'bridge_error',
                 payload: error,
             });
         });

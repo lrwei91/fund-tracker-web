@@ -1,4 +1,4 @@
-// Web 版 shell：以 HTTP + SSE + BroadcastChannel 复刻 tauri-shell.js 的 window.shell 接口。
+// Web 版 shell：以 HTTP + SSE 复刻桌面版 tauri-shell.js 的 window.shell 接口。
 (function () {
     'use strict';
 
@@ -39,10 +39,65 @@
     // ---- SSE：服务端事件（价格提醒命中、报告状态等）----
     var sseSubscribers = {};
     var es = null;
+    var sseOnline = null;
+    var sseRetryDelay = 5000;
+    var sseRetryTimer = null;
     var SSE_EVENTS = ['price-alert-hit', 'price-alert-error', 'research-report-state', 'research-report-notice', 'research-report-open', 'stock-alert'];
+    // 连接状态提示：断线时在顶栏给出「重连中」，避免提醒事件静默丢失而无感知。
+    function setSseStatus(online) {
+        if (sseOnline === online) return;
+        sseOnline = online;
+        var el = document.getElementById('sse-status');
+        if (!el) {
+            var host = document.querySelector('.header-right');
+            if (!host) return;
+            el = document.createElement('span');
+            el.id = 'sse-status';
+            el.className = 'sse-status';
+            host.insertBefore(el, host.firstChild);
+        }
+        if (online) {
+            el.textContent = '';
+            el.removeAttribute('title');
+        } else {
+            el.textContent = '实时连接中断 · 重连中';
+            el.title = '服务端事件连接断开，提醒推送将延迟到恢复后';
+        }
+        el.classList.toggle('offline', online === false);
+    }
+    function scheduleSseRetry() {
+        if (sseRetryTimer) return;
+        sseRetryTimer = setTimeout(function () {
+            sseRetryTimer = null;
+            ensureSse();
+        }, sseRetryDelay);
+        sseRetryDelay = Math.min(30000, sseRetryDelay * 2);
+    }
     function ensureSse() {
         if (es) return;
-        try { es = new EventSource('/api/events'); } catch (e) { return; }
+        try { es = new EventSource('/api/events'); } catch (e) { scheduleSseRetry(); return; }
+        es.onopen = function () {
+            sseRetryDelay = 5000;
+            setSseStatus(true);
+        };
+        es.onerror = function () {
+            setSseStatus(false);
+            // readyState=CLOSED 表示浏览器原生重连已放弃（常见于会话失效或服务重启）：
+            // 探一次登录态，已登录则退避重建连接，未登录回登录页。
+            if (es && es.readyState === 2) {
+                es.close();
+                es = null;
+                fetch('/api/auth/status').then(function (res) { return res.json(); }).then(function (status) {
+                    if (!status || !status.authed) {
+                        if (location.pathname !== '/login.html') location.href = '/';
+                        return;
+                    }
+                    scheduleSseRetry();
+                }).catch(function () { scheduleSseRetry(); });
+                return;
+            }
+            // readyState=CONNECTING：浏览器自动重连，等 onopen 恢复提示即可。
+        };
         SSE_EVENTS.forEach(function (event) {
             es.addEventListener(event, function (message) {
                 var payload = null;
@@ -64,40 +119,7 @@
         };
     }
 
-    // ---- 持仓浮窗（独立小窗口 + BroadcastChannel 同步）----
-    var widgetWindow = null;
-    var channel = null;
-    try { channel = new BroadcastChannel('ft-holding-widget'); } catch (e) { channel = null; }
-    if (channel) {
-        channel.onmessage = function (message) {
-            var data = message.data || {};
-            if (data.type === 'visibility') dispatchLocal('holding-widget-visibility', { visible: !!data.visible });
-            if (data.type === 'open-detail' && data.code) {
-                if (window.AppWorkbench && typeof window.AppWorkbench.openDetail === 'function') {
-                    window.AppWorkbench.openDetail(data.code);
-                    window.focus();
-                }
-            }
-        };
-    }
-
     window.shell = {
-        openHoldingWindow: function () {
-            widgetWindow = window.open('/widget.html', 'ft-holding-widget', 'width=370,height=540,resizable=yes');
-            if (widgetWindow) widgetWindow.focus();
-            return Promise.resolve();
-        },
-        minimizeHoldingWindow: function () { return Promise.resolve(); },
-        maximizeHoldingWindow: function () { return Promise.resolve(); },
-        closeHoldingWindow: function () {
-            if (widgetWindow && !widgetWindow.closed) widgetWindow.close();
-            return Promise.resolve();
-        },
-        syncHoldingWidget: function (state) {
-            try { localStorage.setItem('ft_holding_widget_state', JSON.stringify(state || {})); } catch (e) { /* ignore */ }
-            if (channel) { try { channel.postMessage({ type: 'holding-state', state: state || {} }); } catch (e) { /* ignore */ } }
-            return Promise.resolve();
-        },
         showStockAlert: function (alert) {
             // 网页版：尝试系统通知，随后返回 ok:false 让前端走站内 toast 兜底（保证不漏提醒）
             try {
@@ -130,9 +152,6 @@
             load: function () { return httpJson('GET', '/api/config'); },
             patch: function (changes) { return httpJson('POST', '/api/config/patch', { changes: changes || {} }); },
         },
-        onHoldingWidgetRefresh: function (callback) { return subscribeLocal('holding-widget-refresh', callback); },
-        onHoldingWidgetState: function (callback) { return subscribeLocal('holding-widget-state', callback); },
-        onHoldingWidgetVisibility: function (callback) { return subscribeLocal('holding-widget-visibility', callback); },
         onStockAlert: function (callback) { return subscribeLocal('stock-alert', callback); },
     };
 

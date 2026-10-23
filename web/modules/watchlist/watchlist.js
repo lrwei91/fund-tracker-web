@@ -44,7 +44,6 @@
         markQuoteUnavailable: W.markQuoteUnavailable,
         loadSingleWatchQuote: W.loadSingleWatchQuote,
         renderWatchlist: W.renderWatchlist,
-        renderWatchItem: W.renderWatchItem,
         renderWatchWarningTags: W.renderWatchWarningTags,
         renderCostCell: W.renderCostCell,
         saveWatchlistCost: W.saveWatchlistCost,

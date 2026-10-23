@@ -481,12 +481,20 @@
         if (status) status.textContent = statusText || (valid ? '实时数据' : '等待行情');
     }
 
+    var lastPanoSignature = '';
     function renderSectorPanoramaUI(panorama, statusText) {
         var container = document.getElementById('sector-panorama-grid');
         var status = document.getElementById('sector-panorama-status');
         if (status) status.textContent = statusText || (validSectorPanoramaData(panorama) ? '实时数据' : '等待行情');
         if (!container) return;
         var items = panorama && Array.isArray(panorama.items) ? panorama.items : [];
+        // 主周期任务每 5s 调一次本函数；数据未变化时（如盘后/接口停更）跳过整表
+        // innerHTML 重建，热力图视图的 MutationObserver 联动重建也一并省掉。
+        var signature = items.map(function (item) {
+            return (item && item.name || '') + ':' + (item && typeof item.changePct === 'number' ? item.changePct.toFixed(2) : '');
+        }).join('|');
+        if (signature === lastPanoSignature && container.children.length) return;
+        lastPanoSignature = signature;
         if (!items.length) {
             container.innerHTML = uiState.render('empty', {
                 title: '暂无行业行情',

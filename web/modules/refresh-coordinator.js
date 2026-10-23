@@ -8,7 +8,6 @@
     var running = null;
     var cycleId = 0;
     var visible = document.visibilityState !== 'hidden';
-    var holdingVisible = false;
     var lastQuoteReceivedAt = 0;
     var started = false;
     var detailTail = Promise.resolve();
@@ -72,112 +71,39 @@
         return chunks;
     }
 
-    function syncHoldingWidget(result, watchCodes) {
-        if (!window.shell || typeof window.shell.syncHoldingWidget !== 'function') return;
-        var holdingCodes = window.AppWatchlist && typeof window.AppWatchlist.getHoldingCodes === 'function'
-            ? window.AppWatchlist.getHoldingCodes() : [];
-        var allowed = {};
-        uniqueCodes(watchCodes).forEach(function (code) { allowed[code] = true; });
-        var quotes = {};
-        var source = result && result.data && typeof result.data === 'object' ? result.data : {};
-        var complete = holdingCodes.length > 0;
-        holdingCodes.forEach(function (code) {
-            if (!allowed[code] || !source[code]) {
-                complete = false;
-                return;
-            }
-            var quote = source[code];
-            if (!Number.isFinite(Number(quote.priceValue)) || Number(quote.priceValue) <= 0) {
-                complete = false;
-                return;
-            }
-            quotes[code] = {
-                code: code,
-                name: quote.name,
-                price: quote.price,
-                priceValue: quote.priceValue,
-                changePercent: quote.changePercent,
-                change: quote.change,
-            };
-        });
-        var meta = result && result.meta ? result.meta : {};
-        window.shell.syncHoldingWidget({
-            quotes: quotes,
-            status: result && result.success === false ? 'unavailable' : (complete ? (meta.stale ? 'stale' : 'fresh') : 'unavailable'),
-            updatedAt: result && (result.time || meta.updatedAt) || new Date().toISOString(),
-        }).catch(function () {});
-    }
-
-    function syncCurrentHoldingWidget() {
-        if (!window.AppWatchlist || !window.shell || typeof window.shell.syncHoldingWidget !== 'function') return Promise.resolve();
-        var holdingCodes = typeof window.AppWatchlist.getHoldingCodes === 'function'
-            ? window.AppWatchlist.getHoldingCodes() : [];
-        var quotes = {};
-        var cache = state.watchQuoteCache || {};
-        var fresh = state.watchQuoteFreshCodes || {};
-        holdingCodes.forEach(function (code) {
-            if (!fresh[code] || !cache[code]) return;
-            var quote = cache[code];
-            quotes[code] = {
-                code: code,
-                name: quote.name,
-                price: quote.price,
-                priceValue: quote.priceValue,
-                changePercent: quote.changePercent,
-                change: quote.change,
-            };
-        });
-        var complete = Object.keys(quotes).length === holdingCodes.length && holdingCodes.length > 0;
-        var freshFor = Math.max(30000, Number(state.refreshSecondsMain || 5) * 2000);
-        var cacheIsFresh = complete && lastQuoteReceivedAt > 0 && now() - lastQuoteReceivedAt <= freshFor;
-        return window.shell.syncHoldingWidget({
-            quotes: quotes,
-            status: cacheIsFresh ? 'fresh' : (Object.keys(quotes).length ? 'stale' : 'unavailable'),
-            updatedAt: lastQuoteReceivedAt
-                ? new Date(lastQuoteReceivedAt).toISOString()
-                : (state.watchQuoteUpdateTime || new Date().toISOString()),
-        }).catch(function () {});
-    }
-
     function tasksFor(kind, options, id) {
         options = options || {};
         var tasks = [];
         var quoteContext = null;
-        if (kind === 'all' || kind === 'main' || kind === 'holding') {
-            var holdingOnly = kind === 'holding';
-            var watchCodes = window.AppWatchlist && typeof window.AppWatchlist[
-                holdingOnly ? 'getHoldingCodes' : 'getAllWatchCodes'
-            ] === 'function'
-                ? uniqueCodes(window.AppWatchlist[holdingOnly ? 'getHoldingCodes' : 'getAllWatchCodes']()) : [];
-            var customCodes = holdingOnly ? [] : uniqueCodes(state.customIndexCodes || []);
+        if (kind === 'all' || kind === 'main') {
+            var watchCodes = window.AppWatchlist && typeof window.AppWatchlist.getAllWatchCodes === 'function'
+                ? uniqueCodes(window.AppWatchlist.getAllWatchCodes()) : [];
+            var customCodes = uniqueCodes(state.customIndexCodes || []);
             var quoteCodes = uniqueCodes(watchCodes.concat(customCodes));
-            if (!holdingOnly && window.AppPriceAlerts) quoteCodes = uniqueCodes(quoteCodes.concat(window.AppPriceAlerts.getCodes()));
+            if (window.AppPriceAlerts) quoteCodes = uniqueCodes(quoteCodes.concat(window.AppPriceAlerts.getCodes()));
             var batches = chunk(quoteCodes, QUOTE_BATCH_SIZE);
             quoteContext = {
                 watchCodes: watchCodes,
                 customCodes: customCodes,
                 batchCount: batches.length,
-                holdingOnly: holdingOnly,
             };
             batches.forEach(function (batch) {
                 tasks.push(buildQuotesTask(!!options.force, id, batch));
             });
-            if (!holdingOnly && watchCodes.length && window.AppWatchlist && typeof window.AppWatchlist.loadWatchMarketWarnings === 'function') {
+            if (watchCodes.length && window.AppWatchlist && typeof window.AppWatchlist.loadWatchMarketWarnings === 'function') {
                 tasks.push({ name: '市场异动', priority: 88, run: function () {
                     return window.AppWatchlist.loadWatchMarketWarnings(watchCodes, !!options.force);
                 } });
             }
-            if (!holdingOnly) {
-                tasks.push({ name: '大盘指数', priority: 90, run: function () {
-                    return window.AppMarket ? window.AppMarket.loadIndexData(!!options.force) : null;
-                } });
-                tasks.push({ name: '市场涨跌家数', priority: 85, run: function () {
-                    return window.AppMarket ? window.AppMarket.loadMarketBreadthData(!!options.force) : null;
-                } });
-                tasks.push({ name: '行业全景', priority: 82, run: function () {
-                    return window.AppMarket ? window.AppMarket.loadSectorPanoramaData(!!options.force) : null;
-                } });
-            }
+            tasks.push({ name: '大盘指数', priority: 90, run: function () {
+                return window.AppMarket ? window.AppMarket.loadIndexData(!!options.force) : null;
+            } });
+            tasks.push({ name: '市场涨跌家数', priority: 85, run: function () {
+                return window.AppMarket ? window.AppMarket.loadMarketBreadthData(!!options.force) : null;
+            } });
+            tasks.push({ name: '行业全景', priority: 82, run: function () {
+                return window.AppMarket ? window.AppMarket.loadSectorPanoramaData(!!options.force) : null;
+            } });
         }
         if (kind === 'all' || kind === 'signals') {
             tasks.push({ name: '资金流', priority: 60, run: function () {
@@ -281,10 +207,6 @@
         return active.then(function () { return request(kind, options || {}); });
     }
 
-    function refreshHolding(options) {
-        return requestAfterCurrent('holding', options || {});
-    }
-
     function applyQuoteResults(context, results, id) {
         if (!context || id !== cycleId) return;
         var data = {};
@@ -315,7 +237,6 @@
         if (window.AppWatchlist && typeof window.AppWatchlist.applyCustomIndexQuoteBatch === 'function') {
             window.AppWatchlist.applyCustomIndexQuoteBatch(combined, context.customCodes);
         }
-        syncHoldingWidget(combined, context.watchCodes);
     }
 
     function runDetail(tasks) {
@@ -353,7 +274,7 @@
     function schedule() {
         if (timer) clearTimeout(timer);
         if (!started) return;
-        var dueKeys = !visible && holdingVisible ? ['main'] : Object.keys(nextDue);
+        var dueKeys = Object.keys(nextDue);
         var dueValues = dueKeys.map(function (key) { return nextDue[key] || now() + 60000; });
         var delay = Math.max(250, Math.min.apply(Math, dueValues) - now());
         timer = setTimeout(tick, delay);
@@ -361,7 +282,7 @@
 
     function tick() {
         timer = null;
-        if (started && state.isAutoRefresh && (visible || holdingVisible)) {
+        if (started && state.isAutoRefresh && visible) {
             var current = now();
             var intraday = utils.isIntradayRefreshWindow();
             var reachedMain = current >= nextDue.main;
@@ -383,11 +304,6 @@
             }
             if (reachedDaily) {
                 nextDue.daily = current + 30 * 60 * 1000;
-            }
-            if (!visible && holdingVisible) {
-                if (dueMain) refreshHolding();
-                schedule();
-                return;
             }
             var dueCount = [dueMain, dueSignals, dueNews, dueDaily].filter(Boolean).length;
             if (dueCount > 1) {
@@ -437,28 +353,6 @@
         return requestAfterCurrent('main', {});
     }
 
-    function setHoldingVisible(value) {
-        var next = !!value;
-        if (holdingVisible === next) {
-            if (started && (visible || holdingVisible)) schedule();
-            return Promise.resolve();
-        }
-        holdingVisible = next;
-        if (holdingVisible) {
-            nextDue.main = now() + state.refreshSecondsMain * 1000;
-            var refresh = refreshHolding({ force: true });
-            if (started) schedule();
-            return refresh;
-        }
-        if (!visible && timer) {
-            clearTimeout(timer);
-            timer = null;
-        } else if (started) {
-            schedule();
-        }
-        return Promise.resolve();
-    }
-
     document.addEventListener('visibilitychange', function () {
         visible = document.visibilityState !== 'hidden';
         if (visible) {
@@ -468,19 +362,11 @@
             nextDue.news = current + state.refreshSecondsNews * 1000;
             refreshTab(state.currentTab);
             schedule();
-        } else if (holdingVisible) {
-            schedule();
         } else if (timer) {
             clearTimeout(timer);
             timer = null;
         }
     });
-
-    if (window.shell && typeof window.shell.onHoldingWidgetVisibility === 'function') {
-        window.shell.onHoldingWidgetVisibility(function (payload) {
-            setHoldingVisible(payload && payload.visible);
-        });
-    }
 
     window.AppRefreshCoordinator = {
         start: start,
@@ -490,12 +376,8 @@
         refreshMain: function (options) { return request('main', options || {}); },
         refreshSignals: function (options) { return request('signals', options || {}); },
         refreshNews: function (options) { return request('news', options || {}); },
-        refreshHolding: refreshHolding,
         runDetail: runDetail,
         refreshTab: refreshTab,
-        setHoldingVisible: setHoldingVisible,
-        syncCurrentHoldingWidget: syncCurrentHoldingWidget,
         isRunning: function () { return !!running; },
-        isHoldingVisible: function () { return holdingVisible; },
     };
 })();

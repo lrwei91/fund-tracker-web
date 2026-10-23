@@ -17,8 +17,8 @@
 
 <div class="app-shell" id="app-shell">
 <aside class="desktop-sidebar" aria-label="桌面导航">
-    <div class="desktop-brand" data-tauri-drag-region="deep">
-        <img class="desktop-brand-mark" src="assets/app-icon.png" alt="" aria-hidden="true" draggable="false">
+    <div class="desktop-brand">
+        <img class="desktop-brand-mark" src="assets/app-icon.svg" alt="" aria-hidden="true" draggable="false">
         <div>
             <div class="desktop-brand-name">恭喜发财</div>
             <div class="desktop-brand-subtitle">PERSONAL MARKET DESK</div>
@@ -44,18 +44,16 @@
 
 <div class="app-main-pane">
 <!-- 头部 -->
-<header class="header" id="header" data-tauri-drag-region="deep">
+<header class="header" id="header">
     <div class="header-left">
         <h1 id="header-title">我的盯盘</h1>
         <div class="header-meta">
             <div class="header-subtitle" id="last-updated">等待更新</div>
             <div class="refresh-status" id="refresh-status" aria-live="polite"></div>
-            <button class="app-update-notice" id="app-update-notice" type="button" hidden></button>
         </div>
     </div>
-    <div class="header-right" data-tauri-drag-region="false">
+    <div class="header-right">
         <button class="storage-status" id="storage-status" type="button" aria-live="polite" title="配置保存状态">配置状态未知</button>
-        <button class="header-btn electron-only" id="holding-window-btn" aria-label="打开持仓浮窗" title="持仓浮窗" hidden>浮窗</button>
         <button class="header-btn" id="refresh-btn" aria-label="刷新" title="刷新全部数据">刷新</button>
     </div>
 </header>
@@ -396,7 +394,7 @@
         <section class="settings-view active" data-settings-panel="appearance">
         <div class="settings-group-intro">
             <strong>应用外观</strong>
-            <span>主窗口、持仓浮窗和桌面告警使用同一套显示模式；浮窗的价格配色与不透明度在此单独设置。</span>
+            <span>主窗口与桌面告警使用同一套显示模式。</span>
         </div>
         <div class="settings-row">
             <label for="color-mode-select">显示模式</label>
@@ -408,21 +406,6 @@
         </div>
         <div class="settings-appearance-preview" aria-hidden="true">
             <span></span><span></span><span></span>
-        </div>
-        <div class="settings-section-label">持仓浮窗</div>
-        <div class="settings-row">
-            <label>价格颜色</label>
-            <select id="holding-color-mode">
-                <option value="market" selected>红绿显示</option>
-                <option value="white">单色显示</option>
-            </select>
-        </div>
-        <div class="settings-row settings-row-stacked">
-            <div class="settings-row-title">
-                <label>不透明度</label>
-                <span class="settings-range-value" id="holding-opacity-value">100%</span>
-            </div>
-            <input type="range" id="holding-opacity-input" min="0" max="100" step="1" value="100" class="settings-range-input">
         </div>
         </section>
         <section class="settings-view" data-settings-panel="refresh" hidden>
@@ -481,10 +464,10 @@
         <section class="settings-view" data-settings-panel="alerts" hidden>
         <div class="settings-group-intro">
             <strong>持仓告警</strong>
-            <span>触发后显示桌面弹窗，可分别控制上涨和下跌提示音。</span>
+            <span>触发后弹出站内提醒，并尝试发送浏览器系统通知。</span>
         </div>
         <div class="settings-row">
-            <label>桌面弹窗提醒</label>
+            <label>涨跌幅提醒</label>
             <label class="toggle">
                 <input type="checkbox" id="alert-enabled-toggle" checked>
                 <span class="toggle-track"></span>
@@ -500,20 +483,6 @@
                 <span class="settings-range-value" id="alert-opacity-value">92%</span>
             </div>
             <input type="range" id="alert-opacity-input" min="20" max="100" step="5" value="92" class="settings-range-input">
-        </div>
-        <div class="settings-row">
-            <label>上涨提示音</label>
-            <label class="toggle">
-                <input type="checkbox" id="bull-sound-toggle" checked>
-                <span class="toggle-track"></span>
-            </label>
-        </div>
-        <div class="settings-row">
-            <label>下跌提示音</label>
-            <label class="toggle">
-                <input type="checkbox" id="bear-sound-toggle" checked>
-                <span class="toggle-track"></span>
-            </label>
         </div>
         <div class="alert-preview-actions">
             <button type="button" class="data-action-btn secondary" id="preview-bull-alert">测试上涨提醒</button>
@@ -546,17 +515,17 @@
         </section>
         <section class="settings-view settings-about-view" data-settings-panel="about" hidden>
         <div class="settings-about-identity">
-            <img class="settings-about-mark" src="assets/app-icon.png" alt="" aria-hidden="true">
+            <img class="settings-about-mark" src="assets/app-icon.svg" alt="" aria-hidden="true">
             <div>
-                <strong class="settings-about-name">恭喜发财桌面版</strong>
-                <span class="settings-about-kicker">本地行情、自选股与持仓提醒工具</span>
+                <strong class="settings-about-name">恭喜发财 · Web 版</strong>
+                <span class="settings-about-kicker">自托管行情、自选股与持仓提醒盯盘台</span>
             </div>
         </div>
         <p class="settings-about-description">Web 版：原生 HTML、CSS 和 JavaScript 前端；行情网关、配置存储、价格提醒与盘前/盘后报告由服务器持续运行，关机也能触发。</p>
         <dl class="settings-about-details">
             <div>
                 <dt>运行方式</dt>
-                <dd>本地桌面应用</dd>
+                <dd>自托管 Web 服务（Node.js 零依赖）</dd>
             </div>
             <div>
                 <dt>维护者</dt>
@@ -567,15 +536,7 @@
                 <dd>lrwei91/fund-tracker-desktop</dd>
             </div>
         </dl>
-        <section class="app-update-card" aria-label="软件更新">
-            <div class="settings-row"><span>当前版本</span><strong id="app-current-version">--</strong></div>
-            <div class="settings-row"><label for="app-automatic-updates">自动检查更新</label><label class="toggle"><input type="checkbox" id="app-automatic-updates" checked><span class="toggle-track"></span></label></div>
-            <p class="research-note" id="app-update-mode">启动 30 秒后自动检查，之后每 24 小时检查。</p>
-            <p id="app-update-status" role="status" aria-live="polite">尚未检查更新</p>
-            <progress id="app-update-progress" max="100" aria-label="更新下载进度" hidden></progress>
-            <pre id="app-update-notes"></pre>
-            <div class="research-toolbar"><button type="button" id="app-check-update">检查更新</button><button type="button" id="app-download-update" hidden>下载更新</button><button type="button" id="app-install-update" hidden>重启并安装</button></div>
-        </section>
+        <p class="research-note">网页版随服务端部署更新：重启服务（或 systemd 拉起）即生效，浏览器刷新页面即可获取最新前端。</p>
         <div class="settings-about-actions">
             <button class="data-action-btn" id="about-github-btn" type="button" data-external-url="https://github.com/lrwei91/fund-tracker-desktop">查看 GitHub 项目 ↗</button>
             <button class="data-action-btn secondary" id="about-author-github-btn" type="button" data-external-url="https://github.com/lrwei91">维护者主页 ↗</button>
@@ -584,12 +545,6 @@
         <p class="settings-about-disclaimer">数据仅供参考，不构成投资建议。</p>
         </section>
     </div>
-</div>
-
-<div class="modal-overlay" id="app-update-install-overlay" hidden></div>
-<div class="modal-panel app-update-install-dialog" id="app-update-install-dialog" role="dialog" aria-modal="true" aria-labelledby="app-update-install-title" hidden>
-    <div class="modal-header"><h3 id="app-update-install-title">重启并安装更新？</h3></div>
-    <div class="app-update-install-body"><p>应用会先保存配置，再安装已校验的更新并重新启动。自选、持仓、提醒规则和 AI 服务设置会保留。</p><p id="app-update-install-error" role="alert"></p><div class="research-toolbar"><button type="button" id="app-update-install-cancel">暂不安装</button><button type="button" id="app-update-install-confirm">确认重启并安装</button></div></div>
 </div>
 
 <div class="modal-overlay" id="stock-fund-overlay" hidden></div>
@@ -621,7 +576,6 @@
 <script src="modules/watchlist/watchlist.js"></script>
 <script src="modules/render-news.js"></script>
 <script src="modules/refresh-coordinator.js?rev=10002"></script>
-<script src="modules/updates.js"></script>
 <script src="modules/workbench.js"></script>
 <script src="modules/research-reports.js"></script>
 <script src="app.js"></script>

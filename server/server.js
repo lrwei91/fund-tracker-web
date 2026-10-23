@@ -7,6 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { ConfigStore } = require('./store');
 const { Auth } = require('./auth');
 
@@ -22,7 +23,13 @@ const auth = new Auth(path.join(DATA_DIR, 'auth.json'));
 const sseClients = new Set();
 function emit(event, payload) {
   const frame = `event: ${event}\ndata: ${JSON.stringify(payload ?? {})}\n\n`;
-  for (const res of sseClients) { try { res.write(frame); } catch { /* ignore */ } }
+  for (const res of sseClients) {
+    try {
+      // 慢客户端写缓冲超限则断开，防止事件帧在内存里无限堆积。
+      if (res.writableLength > 4 * 1024 * 1024) { res.destroy(); sseClients.delete(res); continue; }
+      res.write(frame);
+    } catch { sseClients.delete(res); }
+  }
 }
 
 // ---- 数据层（子模块就绪后接入）----
@@ -94,7 +101,7 @@ function finalize(result) {
   return r;
 }
 
-// ---- endpoint stale 缓存（policy.rs 策略表）----
+// ---- endpoint 缓存（policy.rs 策略表 + 新增成功 TTL）----
 const STALE_FOR = {
   '/opportunity-radar': 600,
   '/stock-fundamentals': 3600,
@@ -103,10 +110,20 @@ const STALE_FOR = {
   '/dragon-tiger': 1800, '/fund-flow-120d': 1800, '/stock-kline': 1800,
   '/market-warnings': 1800, '/sector-rotation': 1800,
 };
+// 成功结果短 TTL 直接回放：机会雷达全链路要打 20+ 个上游请求（东财单槽串行），
+// 秒级重复访问（多标签页 / 前端多模块同时拉）直接命中缓存。
+const FRESH_TTL = {
+  '/opportunity-radar': 90,
+};
 const endpointCache = new Map();
 function stableQueryKey(routePath, query) {
   const entries = Object.entries(query || {}).sort(([a], [b]) => (a < b ? -1 : 1));
   return `${routePath}|${entries.map(([k, v]) => `${k}=${v}`).join('&')}`;
+}
+// 缓存/响应统一用序列化后的字符串体：每请求只 stringify 一次（原来成功路径
+// clone→parse→再 stringify，radar 级响应可达数百 KB）。
+function rebindTraceId(body) {
+  return body.replace(/"traceId":"[^"]*"/, `"traceId":"${crypto.randomUUID()}"`);
 }
 async function dispatchData(routePath, query) {
   // market-data 仅 breadth / sector-panorama 允许 stale 回放（指数等实时类不回放）。
@@ -114,32 +131,40 @@ async function dispatchData(routePath, query) {
   if (routePath === '/market-data') {
     staleFor = (query && (query.type === 'breadth' || query.type === 'sector-panorama')) ? 1800 : 0;
   }
-  const key = staleFor > 0 ? stableQueryKey(routePath, query) : null;
+  const freshTtl = FRESH_TTL[routePath] || 0;
+  const key = staleFor > 0 || freshTtl > 0 ? stableQueryKey(routePath, query) : null;
+  if (key) {
+    const cached = endpointCache.get(key);
+    if (cached && cached.body && cached.success && freshTtl > 0 && (Date.now() - cached.at) / 1000 <= freshTtl) {
+      return rebindTraceId(cached.body);
+    }
+  }
   let result;
   if (routePath === '/price-alerts') result = alerts.handle(query);
   else if (routePath === '/stock-ai-research') result = await ai.handle(query);
-  else if (routePath === '/research-reports') result = reports.handle(query);
+  else if (routePath === '/research-reports') result = await reports.handle(query);
   else result = await fetchDataRoute(routePath, query);
   result = finalize(result);
   if (key) {
     if (result.success) {
-      endpointCache.set(key, { at: Date.now(), response: JSON.parse(JSON.stringify(result)) });
       if (endpointCache.size > 128) endpointCache.delete(endpointCache.keys().next().value);
+      endpointCache.set(key, { at: Date.now(), success: true, body: JSON.stringify(result) });
     } else {
       const cached = endpointCache.get(key);
-      if (cached && (Date.now() - cached.at) / 1000 <= staleFor) {
-        const stale = JSON.parse(JSON.stringify(cached.response));
+      if (cached && cached.body && cached.success && staleFor > 0 && (Date.now() - cached.at) / 1000 <= staleFor) {
+        // 失败回放旧成功数据（罕见路径，允许一次 parse 改写 meta）。
+        const stale = JSON.parse(cached.body);
         stale.traceId = crypto.randomUUID();
         stale.meta.stale = true;
         stale.meta.staleAgeSeconds = Math.floor((Date.now() - cached.at) / 1000);
         stale.meta.updatedAt = new Date(cached.at).toISOString();
         if (!stale.meta.fallbackReason) stale.meta.fallbackReason = 'endpoint-cache-stale';
         stale.meta.degraded = true;
-        return stale;
+        return JSON.stringify(stale);
       }
     }
   }
-  return result;
+  return JSON.stringify(result);
 }
 
 // ---- HTTP 基础 ----
@@ -147,7 +172,11 @@ function parseCookies(req) {
   const out = {};
   for (const part of String(req.headers.cookie || '').split(';')) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    if (i > 0) {
+      let value = part.slice(i + 1).trim();
+      try { value = decodeURIComponent(value); } catch { /* 畸形编码按原样保留 */ }
+      out[part.slice(0, i).trim()] = value;
+    }
   }
   return out;
 }
@@ -178,18 +207,56 @@ function sendJson(res, status, obj) {
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+  '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.mjs': 'text/javascript; charset=utf-8',
+  '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
 };
+const IMMUTABLE_EXT = new Set(['.png', '.jpg', '.svg', '.ico', '.woff2', '.woff', '.mp3', '.wav']);
+// 静态缓存策略（都是 hash 无关的本机文件，用 mtime+size 做 ETag）：
+//   文本类（html/js/css）：no-cache + ETag → 未变时 304 空体，刷新页面不再重复下载 680KB 资源；
+//   图片字体：max-age=86400，一天内强缓存。
+// 文本响应 >1KB 时按 Accept-Encoding 做 br/gzip 压缩，styles.css 等传输体积约降 70-80%。
 function serveStatic(req, res, urlPath) {
-  let rel = decodeURIComponent(urlPath);
+  let rel = urlPath;
+  try { rel = decodeURIComponent(urlPath); } catch { /* 畸形 % 序列按原样处理 */ }
   if (rel === '/' || rel === '') rel = '/index.html';
   if ((rel === '/index.html') && !isAuthed(req)) rel = '/login.html';
   const file = path.normalize(path.join(WEB_DIR, rel));
-  if (!file.startsWith(WEB_DIR)) { res.writeHead(403); res.end('forbidden'); return; }
-  fs.readFile(file, (err, data) => {
-    if (err) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('not found'); return; }
-    res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
-    res.end(data);
+  if (!file.startsWith(WEB_DIR + path.sep)) { res.writeHead(403); res.end('forbidden'); return; }
+  fs.stat(file, (statErr, stat) => {
+    if (statErr || !stat.isFile()) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('not found'); return; }
+    const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+    const ext = path.extname(file);
+    const cacheControl = IMMUTABLE_EXT.has(ext) ? 'public, max-age=86400' : 'no-cache';
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, { etag, 'cache-control': cacheControl }); res.end(); return; }
+    fs.readFile(file, (err, data) => {
+      if (err) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('not found'); return; }
+      const type = MIME[ext] || 'application/octet-stream';
+      const headers = { 'content-type': type, etag, 'cache-control': cacheControl };
+      const accept = String(req.headers['accept-encoding'] || '');
+      const compressible = /^(text\/|application\/(json|javascript))/.test(type) || ext === '.svg';
+      const useBr = compressible && data.length > 1024 && accept.includes('br');
+      const useGzip = compressible && data.length > 1024 && !useBr && accept.includes('gzip');
+      if (!useBr && !useGzip) {
+        headers['content-length'] = data.length;
+        res.writeHead(200, headers);
+        res.end(data);
+        return;
+      }
+      const finish = (compErr, out) => {
+        if (compErr) {
+          headers['content-length'] = data.length;
+          res.writeHead(200, headers);
+          res.end(data);
+          return;
+        }
+        headers['content-encoding'] = useBr ? 'br' : 'gzip';
+        headers['content-length'] = out.length;
+        res.writeHead(200, headers);
+        res.end(out);
+      };
+      if (useBr) zlib.brotliCompress(data, { level: 5 }, finish);
+      else zlib.gzip(data, { level: 6 }, finish);
+    });
   });
 }
 
@@ -232,12 +299,16 @@ const server = http.createServer(async (req, res) => {
       if (!auth.isSetup()) { sendJson(res, 401, { success: false, message: '尚未设置访问密码', errorCode: 'unauthorized', retryable: false }); return; }
       if (!isAuthed(req)) { sendJson(res, 401, { success: false, message: '未登录', errorCode: 'unauthorized', retryable: false }); return; }
       if (p === '/api/fetch' && req.method === 'POST') {
-        const body = await readJson(req);
+        let body;
+        try { body = await readJson(req); }
+        catch (e) { sendJson(res, 400, { success: false, message: '请求体不是有效 JSON', errorCode: 'invalid_input', retryable: false }); return; }
         const routePath = String(body.path || '');
         const query = {};
         for (const [k, v] of Object.entries(body.query || {})) query[k] = String(v ?? '');
-        const result = await dispatchData(routePath, query);
-        sendJson(res, 200, result);
+        // dispatchData 已返回序列化好的 JSON 字符串，直接落响应，避免二次 stringify。
+        const bodyStr = await dispatchData(routePath, query);
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(bodyStr);
         return;
       }
       if (p === '/api/config' && req.method === 'GET') { sendJson(res, 200, store.load()); return; }

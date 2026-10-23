@@ -16,6 +16,8 @@
     var watchSparkPending = {};
     var WATCH_SPARK_TTL_MS = 2 * 60 * 1000;
     var persistedQuoteSnapshot = null;
+    var quotePersistTimer = null;
+    var QUOTE_PERSIST_INTERVAL_MS = 30 * 1000;
 
     async function resolveStockInput(input) {
         var value = input.trim();
@@ -69,7 +71,7 @@
         var stillReferenced = W.getAllWatchCodes().includes(code);
         if (!stillReferenced && state.watchQuoteCache[code]) {
             delete state.watchQuoteCache[code];
-            W.persistWatchQuoteCache();
+            flushPersistedQuoteCache();
         }
         if (!stillReferenced && state.watchMarketWarnings && state.watchMarketWarnings[code]) {
             delete state.watchMarketWarnings[code];
@@ -105,22 +107,30 @@
         }
 
         var prevMap = W.getPrevChangePct();
-        grid.innerHTML = codes.map(function (code) {
-            var data = state.watchQuoteCache[code];
-            var fresh = !!state.watchQuoteFreshCodes[code];
-            var rawName = data ? data.name : code + '（待刷新）';
+        // keyed 增量渲染：行结构未变的只 patch 变化的单元格（价格/涨跌/成本/名字），
+        // 新增、删除、列模式切换的行单独重建。避免每 5s 刷新周期整表 innerHTML
+        // 重解析——悬停态、选中态、sparkline DOM 都能保留。
+        var existing = {};
+        Array.prototype.forEach.call(grid.children, function (el) {
+            if (el.classList && el.classList.contains('watchlist-item')) {
+                var code = el.getAttribute('data-code');
+                if (code) existing[code] = el;
+            }
+        });
+        Array.prototype.forEach.call(Array.prototype.slice.call(grid.children), function (el) {
+            var code = el.getAttribute && el.getAttribute('data-code');
+            if (!el.classList.contains('watchlist-item') || !code || codes.indexOf(code) === -1) el.remove();
+        });
+        codes.forEach(function (code, index) {
             var prev = Object.prototype.hasOwnProperty.call(prevMap, code) ? prevMap[code] : undefined;
-            return renderWatchItem(
-                code,
-                W.getDisplayStockName(code, rawName),
-                fresh && data ? data.price : '--',
-                fresh && data ? data.changePercent : null,
-                fresh && data ? data.volume : '--',
-                prev,
-                showCost,
-                fresh,
-            );
-        }).join('');
+            var cells = computeWatchCells(code, prev, showCost);
+            var row = existing[code];
+            if (row && (!!row.querySelector(':scope > .watchlist-stock-cost')) !== showCost) row = null;
+            if (row) row = updateWatchItemDom(row, cells) || buildWatchItemRow(code, cells);
+            else row = buildWatchItemRow(code, cells);
+            var ref = grid.children[index] || null;
+            if (ref !== row) grid.insertBefore(row, ref);
+        });
         bindWatchRemove();
         grid.classList.toggle('with-cost', showCost);
         document.querySelector('.watchlist-header-row')?.classList.toggle('with-cost', showCost);
@@ -134,7 +144,10 @@
         if (updateTimeEl) updateTimeEl.textContent = allFresh ? (state.watchQuoteUpdateTime || '') : '等待实时行情';
     }
 
-    function persistWatchQuoteCache() {
+    // 盘中行情每 5s 必变，但落盘 30s 一次足够（列表渲染读内存缓存，不读这里）。
+    // 页面隐藏/卸载时立即 flush，避免主线程每周期一次全量 stringify + 同步写。
+    function flushPersistedQuoteCache() {
+        if (quotePersistTimer) { clearTimeout(quotePersistTimer); quotePersistTimer = null; }
         try {
             var snapshot = JSON.stringify(state.watchQuoteCache);
             if (snapshot === persistedQuoteSnapshot) return;
@@ -142,6 +155,16 @@
             window.AppStorage.setItem(KEYS.WATCH_QUOTE_CACHE_KEY, snapshot);
         } catch (e) {}
     }
+
+    function persistWatchQuoteCache() {
+        if (quotePersistTimer) return;
+        quotePersistTimer = setTimeout(flushPersistedQuoteCache, QUOTE_PERSIST_INTERVAL_MS);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') flushPersistedQuoteCache();
+    });
+    window.addEventListener('beforeunload', flushPersistedQuoteCache);
 
     function persistWatchQuoteUpdateTime(value) {
         try { window.AppStorage.setItem(KEYS.WATCH_QUOTE_UPDATE_TIME_KEY, value || ''); } catch (e) {}
@@ -277,7 +300,14 @@
         }
     }
 
-    function renderWatchItem(code, name, price, changePercent, volume, prev, showCost, quoteFresh) {
+    // 单元格内容计算（build 与 patch 共用）：所有显示值从 state 派生。
+    function computeWatchCells(code, prev, showCost) {
+        var data = state.watchQuoteCache[code];
+        var fresh = !!state.watchQuoteFreshCodes[code];
+        var rawName = data ? data.name : code + '（待刷新）';
+        var name = W.getDisplayStockName(code, rawName);
+        var changePercent = fresh && data ? data.changePercent : null;
+        var price = fresh && data ? data.price : '--';
         var numericChange = Number(changePercent);
         var cls = numericChange > 0 ? 'positive' : numericChange < 0 ? 'negative' : 'neutral';
         var pt = Number.isFinite(numericChange)
@@ -286,23 +316,72 @@
         var arrow = (window.AppMarket && typeof window.AppMarket.trendArrow === 'function')
             ? window.AppMarket.trendArrow(changePercent, prev)
             : '─';
-        var data = state.watchQuoteCache[code];
-        var fresh = quoteFresh === undefined ? true : !!quoteFresh;
         var priceValue = fresh && data && typeof data.priceValue === 'number' ? data.priceValue : null;
         var displayPrice = utils.formatQuotePrice(priceValue, price, code, data && data.name ? data.name : name);
-        var costCell = showCost ? renderCostCell(code, priceValue) : '';
-        var spark = renderWatchSparklineCell(code, cls, fresh);
-        var warningTags = renderWatchWarningTags(code);
-        return '<div class="watchlist-item clickable" data-code="' + utils.escapeHtml(code) + '" data-pct="' + utils.escapeHtml(changePercent) + '">' +
-            '<button class="watchlist-detail-trigger" type="button" aria-label="查看 ' + utils.escapeHtml(name) + ' ' + utils.escapeHtml(code) + ' 详情"></button>' +
+        return {
+            code: code,
+            name: name,
+            cls: cls,
+            pt: pt,
+            arrow: arrow,
+            displayPrice: displayPrice,
+            pctAttr: String(changePercent),
+            fresh: fresh,
+            costHtml: showCost ? renderCostCell(code, priceValue) : '',
+            sparkHtml: renderWatchSparklineCell(code, cls, fresh),
+            sparkCls: 'watchlist-stock-sparkline ' + cls,
+            tagsHtml: renderWatchWarningTags(code),
+        };
+    }
+
+    function buildWatchItemRow(code, cells) {
+        var row = document.createElement('div');
+        row.className = 'watchlist-item clickable';
+        row.setAttribute('data-code', code);
+        row.setAttribute('data-pct', cells.pctAttr);
+        row.innerHTML =
+            '<button class="watchlist-detail-trigger" type="button" aria-label="查看 ' + utils.escapeHtml(cells.name) + ' ' + utils.escapeHtml(code) + ' 详情"></button>' +
             '<div class="watchlist-item-main">' +
-            '<div class="watchlist-stock-name">' + utils.escapeHtml(name) + '</div>' +
-            '<div class="watchlist-stock-code">' + utils.escapeHtml(code) + '</div>' + warningTags + '</div>' +
-            spark +
-            costCell +
-            '<div class="watchlist-stock-price ' + cls + '">' + utils.escapeHtml(displayPrice) + '</div>' +
-            '<div class="watchlist-stock-change ' + cls + '">' + utils.escapeHtml(pt) + ' <span class="trend-arrow">' + utils.escapeHtml(arrow) + '</span></div>' +
-            '<button class="watchlist-remove-btn" data-code="' + utils.escapeHtml(code) + '" aria-label="删除 ' + utils.escapeHtml(code) + '">✕</button></div>';
+            '<div class="watchlist-stock-name">' + utils.escapeHtml(cells.name) + '</div>' +
+            '<div class="watchlist-stock-code">' + utils.escapeHtml(code) + '</div>' + cells.tagsHtml + '</div>' +
+            '<div class="' + cells.sparkCls + '" data-watch-spark="' + utils.escapeHtml(code) + '">' + cells.sparkHtml + '</div>' +
+            cells.costHtml +
+            '<div class="watchlist-stock-price ' + cells.cls + '">' + utils.escapeHtml(cells.displayPrice) + '</div>' +
+            '<div class="watchlist-stock-change ' + cells.cls + '">' + utils.escapeHtml(cells.pt) + ' <span class="trend-arrow">' + utils.escapeHtml(cells.arrow) + '</span></div>' +
+            '<button class="watchlist-remove-btn" data-code="' + utils.escapeHtml(code) + '" aria-label="删除 ' + utils.escapeHtml(code) + '">✕</button>';
+        return row;
+    }
+
+    // 原地 patch 已有行；结构不完整时返回 null 让调用方整行重建。
+    function updateWatchItemDom(row, cells) {
+        var main = row.querySelector(':scope > .watchlist-item-main');
+        var spark = row.querySelector(':scope > .watchlist-stock-sparkline');
+        var price = row.querySelector(':scope > .watchlist-stock-price');
+        var change = row.querySelector(':scope > .watchlist-stock-change');
+        if (!main || !spark || !price || !change) return null;
+        if (row.getAttribute('data-pct') !== cells.pctAttr) row.setAttribute('data-pct', cells.pctAttr);
+        var nameEl = main.querySelector(':scope > .watchlist-stock-name');
+        if (nameEl && nameEl.textContent !== cells.name) nameEl.textContent = cells.name;
+        if (row.__tagsSig !== cells.tagsHtml) {
+            row.__tagsSig = cells.tagsHtml;
+            var tags = main.querySelector(':scope > .watchlist-stock-tags');
+            if (tags) tags.remove();
+            if (cells.tagsHtml) main.insertAdjacentHTML('beforeend', cells.tagsHtml);
+        }
+        if (spark.className !== cells.sparkCls) spark.className = cells.sparkCls;
+        var sparkSvg = spark.firstElementChild && spark.firstElementChild.nodeName === 'svg'
+            ? spark.firstElementChild.outerHTML : '';
+        if (cells.sparkHtml && sparkSvg !== cells.sparkHtml) spark.innerHTML = cells.sparkHtml;
+        var nextPriceCls = 'watchlist-stock-price ' + cells.cls;
+        if (price.className !== nextPriceCls) price.className = nextPriceCls;
+        if (price.textContent !== cells.displayPrice) price.textContent = cells.displayPrice;
+        var nextChangeCls = 'watchlist-stock-change ' + cells.cls;
+        if (change.className !== nextChangeCls) change.className = nextChangeCls;
+        var nextChangeHtml = utils.escapeHtml(cells.pt) + ' <span class="trend-arrow">' + utils.escapeHtml(cells.arrow) + '</span>';
+        if (change.innerHTML !== nextChangeHtml) change.innerHTML = nextChangeHtml;
+        var cost = row.querySelector(':scope > .watchlist-stock-cost');
+        if (cost && cost.innerHTML !== cells.costHtml) cost.innerHTML = cells.costHtml;
+        return row;
     }
 
     function renderWatchWarningTags(code) {
@@ -331,6 +410,18 @@
         return tags.length ? '<div class="watchlist-stock-tags">' + tags.join('') + '</div>' : '';
     }
 
+    // 同一帧内行情批次与市场异动可能先后到达，各自触发一次全量 innerHTML 重建；
+    // 合并到下一帧只重建一次，降低周期性主线程抖动。
+    var renderScheduled = false;
+    function renderWatchlistSoon() {
+        if (renderScheduled) return;
+        renderScheduled = true;
+        (window.requestAnimationFrame || function (fn) { setTimeout(fn, 16); })(function () {
+            renderScheduled = false;
+            renderWatchlist();
+        });
+    }
+
     function applyWatchMarketWarnings(result, requestedCodes) {
         if (!result || result.success === false || !result.data || typeof result.data !== 'object') return false;
         if (!state.watchMarketWarnings || typeof state.watchMarketWarnings !== 'object') state.watchMarketWarnings = {};
@@ -350,7 +441,7 @@
                 monitorEnd: incoming.monitorEnd || previous.monitorEnd || '',
             };
         });
-        renderWatchlist();
+        renderWatchlistSoon();
         return true;
     }
 
@@ -602,7 +693,6 @@
     W.applyWatchMarketWarnings = applyWatchMarketWarnings;
     W.markQuoteUnavailable = markQuoteUnavailable;
     W.loadSingleWatchQuote = loadSingleWatchQuote;
-    W.renderWatchItem = renderWatchItem;
     W.renderWatchWarningTags = renderWatchWarningTags;
     W.renderCostCell = renderCostCell;
     W.saveWatchlistCost = saveWatchlistCost;

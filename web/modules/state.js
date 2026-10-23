@@ -105,9 +105,6 @@
     // 应用外观设置
     var colorMode = 'light';
 
-    // 持仓股浮窗设置
-    var holdingColorMode = 'market';
-    var holdingOpacity = 100;
     // 主 tab
     var currentTab = 'dashboard';
 
@@ -137,8 +134,6 @@
     var alertEnabled = true;
     var alertThreshold = 2;
     var alertOpacity = 0.92;
-    var bullSoundEnabled = true;
-    var bearSoundEnabled = true;
     var watchAlertState = {};
 
     // 新闻源 / 列表 state
@@ -205,8 +200,6 @@
             alertThreshold = saved.threshold;
         }
         if (typeof saved.opacity === 'number' && saved.opacity >= 0.2 && saved.opacity <= 1) alertOpacity = saved.opacity;
-        if (typeof saved.bullSoundEnabled === 'boolean') bullSoundEnabled = saved.bullSoundEnabled;
-        if (typeof saved.bearSoundEnabled === 'boolean') bearSoundEnabled = saved.bearSoundEnabled;
     } catch (e) { /* ignore */ }
     try {
         var rawAlertState = JSON.parse(storage.getItem(WATCH_ALERT_STATE_KEY) || '{}') || {};
@@ -278,8 +271,6 @@
             if (typeof restoredAlerts.enabled === 'boolean') window.AppState.alertEnabled = restoredAlerts.enabled;
             if (typeof restoredAlerts.threshold === 'number') window.AppState.alertThreshold = restoredAlerts.threshold;
             if (typeof restoredAlerts.opacity === 'number') window.AppState.alertOpacity = restoredAlerts.opacity;
-            if (typeof restoredAlerts.bullSoundEnabled === 'boolean') window.AppState.bullSoundEnabled = restoredAlerts.bullSoundEnabled;
-            if (typeof restoredAlerts.bearSoundEnabled === 'boolean') window.AppState.bearSoundEnabled = restoredAlerts.bearSoundEnabled;
             var restoredAlertState = JSON.parse(storage.getItem(WATCH_ALERT_STATE_KEY) || '{}');
             if (restoredAlertState && restoredAlertState.__v === WATCH_ALERT_SCHEMA_VERSION) {
                 window.AppState.watchAlertState = restoredAlertState;
@@ -339,8 +330,6 @@
         refreshSecondsSignal: refreshSecondsSignal,
         refreshSecondsNews: refreshSecondsNews,
         colorMode: colorMode,
-        holdingColorMode: holdingColorMode,
-        holdingOpacity: holdingOpacity,
         currentTab: currentTab,
         activeWatchTabId: activeWatchTabId,
         liveIndexData: liveIndexData,
@@ -361,8 +350,6 @@
         alertEnabled: alertEnabled,
         alertThreshold: alertThreshold,
         alertOpacity: alertOpacity,
-        bullSoundEnabled: bullSoundEnabled,
-        bearSoundEnabled: bearSoundEnabled,
         watchAlertState: watchAlertState,
         currentNewsSource: currentNewsSource,
         newsState: newsState,

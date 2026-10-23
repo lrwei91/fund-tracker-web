@@ -640,6 +640,15 @@
             renderHotRank(cached.data.items, source, false);
             return;
         }
+        // 首次加载（无当日缓存）先给 loading 占位，避免列表空白无反馈。
+        var hasTodayCache = !!(cached && cached.date === todayKey && cached.data && Array.isArray(cached.data.items));
+        if (!hasTodayCache) {
+            var loadingList = document.getElementById(source === 'em' ? 'hot-rank-list-em' : 'hot-rank-list-ths');
+            if (loadingList) loadingList.innerHTML = '<li class="ui-state-host">' + uiState.render('loading', {
+                title: '正在加载热榜',
+                detail: '人气榜单返回后自动更新。',
+            }) + '</li>';
+        }
         try {
             var res = await window.AppDataClient.fetch('/hot-rank', { source: source, limit: 30 }, requestOptions(force));
             if (!res.ok) throw new Error('HTTP ' + res.status);

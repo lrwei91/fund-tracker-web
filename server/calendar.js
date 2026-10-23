@@ -12,11 +12,13 @@ const SOURCES = [
 const YEARS = [2025, 2026];
 
 function pad(n) { return String(n).padStart(2, '0'); }
+// Intl.DateTimeFormat 构造较贵且无状态可复用：alerts/reports/warm 的周期 tick 都会调
+// shanghaiNow()，提为模块级实例避免每次重建。
+const SHANGHAI_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 // 上海日期工具：统一以 'YYYY-MM-DD' 字符串为日期表示，避免时区漂移
 function shanghaiNow() {
-  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   const parts = {};
-  for (const p of fmt.formatToParts(new Date())) parts[p.type] = p.value;
+  for (const p of SHANGHAI_FMT.formatToParts(new Date())) parts[p.type] = p.value;
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     minutes: Number(parts.hour) * 60 + Number(parts.minute),

@@ -116,7 +116,9 @@
         var config = SOURCES[source];
         var query = { limit: String(KEYS.NEWS_PAGE_SIZE[source]) };
         if (cursor) query.cursor = cursor;
-        var bypassFresh = !!force || !cursor;
+        // 只有手动强刷才绕过服务端缓存；自动刷新（60s）走正常缓存即可，
+        // 服务端对快讯源已有短 TTL，没必要每次轮询都打上游。
+        var bypassFresh = !!force;
         var res = await window.AppDataClient.fetch(config.path, query, {
             force: bypassFresh,
             cacheMode: bypassFresh ? 'bypass_fresh' : 'normal',
@@ -140,11 +142,15 @@
     async function loadMoreNews() {
         var source = state.currentNewsSource;
         var current = state.newsState[source];
+        var container = document.getElementById('news-list');
         if (!current || current.isLoading || (current.items.length && !current.hasMore)) return;
         current.isLoading = true;
-        renderNewsList();
+        var appendMode = current.items.length > 0;
+        if (!appendMode) renderNewsList();
+        else if (container) setNewsFooter(container, current);
         try {
             var page = await requestPage(source, current.cursor, false);
+            var oldCount = current.items.length;
             current.items = mergeUnique(current.items, page.rows);
             current.cursor = page.cursor;
             current.hasMore = page.hasMore;
@@ -153,12 +159,22 @@
             current.stale = page.stale;
             current.staleAgeSeconds = page.staleAgeSeconds;
             current.error = false;
+            if (appendMode && container) {
+                // 追加模式：只把新增条目插到尾部状态行之前，
+                // 已有条目的展开态和滚动位置都不受影响。
+                var appended = current.items.slice(oldCount);
+                var footer = container.querySelector('[data-news-footer]');
+                var html = appended.map(renderNewsItem).join('');
+                if (footer) footer.insertAdjacentHTML('beforebegin', html);
+                else if (html) container.insertAdjacentHTML('beforeend', html);
+            }
         } catch (error) {
             console.error(SOURCES[source].label + '获取失败:', error);
             current.error = true;
         } finally {
             current.isLoading = false;
-            renderNewsList();
+            if (appendMode && container && !current.error) setNewsFooter(container, current);
+            else renderNewsList();
         }
     }
 
@@ -189,6 +205,35 @@
         return SOURCES[source] ? SOURCES[source].label : source;
     }
 
+    // 展开态注册表：以条目 key 记忆，刷新/重渲染后可恢复（此前只存在 DOM class 上，
+    // 60s 自动刷新一把全量重建就全部折叠了）。
+    var expandedNewsKeys = {};
+    function pruneExpandedKeys(items) {
+        var alive = {};
+        items.forEach(function (item) {
+            var key = itemKey(item);
+            if (key && expandedNewsKeys[key]) alive[key] = true;
+        });
+        expandedNewsKeys = alive;
+    }
+
+    function newsFooterHtml(current) {
+        if (current.isLoading) return '<div class="news-status news-loading">刷新中...</div>';
+        if (current.error) return uiState.render('error', {
+            title: '刷新失败，正在显示已有快讯',
+            detail: '旧内容已保留，可重新加载最新数据。',
+            retryScope: 'news',
+        });
+        if (current.hasMore) return '<button type="button" class="news-status news-loadmore" data-news-load-more="1">加载更多</button>';
+        return '<div class="news-status news-loadend">已经到底了</div>';
+    }
+
+    function setNewsFooter(container, current) {
+        var footer = container.querySelector('[data-news-footer]');
+        if (footer) footer.innerHTML = newsFooterHtml(current);
+        else container.insertAdjacentHTML('beforeend', '<div class="news-footer" data-news-footer="1">' + newsFooterHtml(current) + '</div>');
+    }
+
     function renderNewsList() {
         var container = document.getElementById('news-list');
         if (!container) return;
@@ -216,6 +261,7 @@
             });
             return;
         }
+        pruneExpandedKeys(current.items);
         var sourceWarning = '';
         if (current.stale || current.degraded) {
             var statusLabel = current.stale
@@ -223,46 +269,50 @@
                 : '备用来源 · ' + actualSourceLabel(current.actualSource);
             sourceWarning = '<div class="news-source-warning">' + utils.escapeHtml(statusLabel) + '</div>';
         }
-        var html = sourceWarning + current.items.map(renderNewsItem).join('');
-        if (current.isLoading) html += '<div class="news-status news-loading">刷新中...</div>';
-        else if (current.error) html += uiState.render('error', {
-            title: '刷新失败，正在显示已有快讯',
-            detail: '旧内容已保留，可重新加载最新数据。',
-            retryScope: 'news',
-        });
-        else if (current.hasMore) html += '<button type="button" class="news-status news-loadmore" data-news-load-more="1">加载更多</button>';
-        else html += '<div class="news-status news-loadend">已经到底了</div>';
-        container.innerHTML = html;
-        bindNewsItems(container);
-        var loadMoreButton = container.querySelector('[data-news-load-more]');
-        if (loadMoreButton) loadMoreButton.addEventListener('click', loadMoreNews);
+        container.innerHTML = sourceWarning + current.items.map(renderNewsItem).join('')
+            + '<div class="news-footer" data-news-footer="1">' + newsFooterHtml(current) + '</div>';
+        bindNewsContainer(container);
         observeLoadSentinel();
     }
 
     function renderNewsItem(item) {
         if (!item.title && !item.summary) return '';
-        return '<article class="news-item" tabindex="0" aria-expanded="false">' +
+        var expanded = !!expandedNewsKeys[itemKey(item)];
+        return '<article class="news-item' + (expanded ? ' expanded' : '') + '" tabindex="0" data-news-key="' + utils.escapeHtml(itemKey(item)) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '">' +
             '<div class="news-header"><span class="news-time">' + utils.escapeHtml(formatNewsTime(item.time)) + '</span></div>' +
             (item.title ? '<div class="news-title">' + utils.escapeHtml(item.title) + '</div>' : '') +
             (item.summary ? '<div class="news-summary">' + utils.escapeHtml(item.summary) + '</div>' : '') +
-            '<span class="news-expand-hint" aria-hidden="true">展开</span>' +
+            '<span class="news-expand-hint" aria-hidden="true">' + (expanded ? '收起' : '展开') + '</span>' +
             '</article>';
     }
 
-    function bindNewsItems(container) {
-        container.querySelectorAll('.news-item').forEach(function (item) {
-            function toggleItem() {
-                var expanded = item.classList.toggle('expanded');
-                item.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-                var hint = item.querySelector('.news-expand-hint');
-                if (hint) hint.textContent = expanded ? '收起' : '展开';
-            }
-            item.addEventListener('click', toggleItem);
-            item.addEventListener('keydown', function (event) {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                toggleItem();
-            });
+    function toggleNewsItem(itemEl) {
+        var key = itemEl.getAttribute('data-news-key');
+        if (!key) return;
+        var expanded = !expandedNewsKeys[key];
+        if (expanded) expandedNewsKeys[key] = true;
+        else delete expandedNewsKeys[key];
+        itemEl.classList.toggle('expanded', expanded);
+        itemEl.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        var hint = itemEl.querySelector('.news-expand-hint');
+        if (hint) hint.textContent = expanded ? '收起' : '展开';
+    }
+
+    // 容器级事件委托：列表内条目可能随刷新频繁重建，逐条绑监听既浪费又会泄漏。
+    function bindNewsContainer(container) {
+        if (container.dataset.newsBound === 'true') return;
+        container.dataset.newsBound = 'true';
+        container.addEventListener('click', function (event) {
+            if (event.target.closest('[data-news-load-more]')) { loadMoreNews(); return; }
+            var item = event.target.closest('.news-item');
+            if (item) toggleNewsItem(item);
+        });
+        container.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            var item = event.target.closest && event.target.closest('.news-item');
+            if (!item || event.target !== item) return;
+            event.preventDefault();
+            toggleNewsItem(item);
         });
     }
 

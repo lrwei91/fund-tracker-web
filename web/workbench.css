@@ -171,7 +171,7 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
 
 /* Dense rows keep price, cost and actions aligned even without a sparkline. */
 .electron-app .desktop-nav-btn.active .desktop-nav-icon { color: #1a1a1a; }
-.electron-app .watchlist-tab-add, .electron-app #holding-window-btn { color: var(--text-primary); }
+.electron-app .watchlist-tab-add { color: var(--text-primary); }
 .electron-app .add-btn { background: var(--color-accent); color: #1a1a1a; }
 .electron-app .watchlist-item { min-height: 64px; padding-block: 8px; }
 .electron-app .watchlist-header-row, .electron-app .watchlist-grid { margin-inline: 0; }

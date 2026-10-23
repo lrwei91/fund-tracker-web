@@ -391,6 +391,11 @@ function createGateway(options) {
     return work;
   }
 
+  // TextDecoder 无解码状态（未启用 stream 模式），模块级复用，避免每请求重建。
+  const GBK_DECODER = new TextDecoder('gbk');
+  const UTF8_STRICT_DECODER = new TextDecoder('utf-8', { fatal: true });
+  const UTF8_DECODER = new TextDecoder('utf-8');
+
   async function request(spec) {
     if (!spec || typeof spec.url !== 'string') {
       throw new GatewayError('上游地址无效');
@@ -403,17 +408,17 @@ function createGateway(options) {
     const buffer = await bytes(normalized, key);
     const responseType = spec.responseType || 'json';
     if (responseType === 'gbk') {
-      return { status: 200, data: new TextDecoder('gbk').decode(buffer) };
+      return { status: 200, data: GBK_DECODER.decode(buffer) };
     }
     if (responseType === 'text') {
       try {
-        return { status: 200, data: new TextDecoder('utf-8', { fatal: true }).decode(buffer) };
+        return { status: 200, data: UTF8_STRICT_DECODER.decode(buffer) };
       } catch (error) {
         throw new GatewayError(error.message);
       }
     }
     try {
-      return { status: 200, data: JSON.parse(new TextDecoder('utf-8').decode(buffer)) };
+      return { status: 200, data: JSON.parse(UTF8_DECODER.decode(buffer)) };
     } catch (error) {
       const wrapped = new GatewayError(error.message);
       wrapped.code = 'parse_error';
