@@ -242,13 +242,10 @@
         applyMetricPrefs(panel);
     }
 
-    /* ---------------- 4) 行业全景：列表 / 热力图融合视图 ----------------
+    /* ---------------- 4) 行业全景：只显示热力图 ----------------
        与应用自身的全景列表共用同一份数据（直接读 #sector-panorama-grid 的渲染结果），
        不再单独发请求：状态文案、刷新节奏、stale 表现都与列表完全一致。
-       切换控件放在卡片体内顶部，避开可折叠的卡片头。 */
-    var PANO_VIEW_KEY = 'ft_panorama_view';
-    var panoView = 'list';
-    try { if (localStorage.getItem(PANO_VIEW_KEY) === 'heat') panoView = 'heat'; } catch (e) { /* ignore */ }
+       列表本身隐藏，只呈现按涨幅排序的热力图；图例放在卡片体内顶部。 */
 
     function panoItemsFromGrid(grid) {
         var items = [];
@@ -296,47 +293,24 @@
 
         var toolbar = document.createElement('div');
         toolbar.className = 'pano-toolbar';
-        toolbar.innerHTML = '<div class="pano-switch" role="tablist" aria-label="行业全景视图">'
-            + '<button type="button" role="tab" data-view="list">列表</button>'
-            + '<button type="button" role="tab" data-view="heat">热力图</button></div>'
-            + '<div class="pano-legend"><span>跌</span><i class="pano-legend-bar"></i><span>涨</span><em>按涨幅排序</em></div>';
+        toolbar.innerHTML = '<div class="pano-legend"><span>跌</span><i class="pano-legend-bar"></i><span>涨</span><em>按涨幅排序</em></div>';
         body.insertBefore(toolbar, grid);
 
         var box = document.createElement('div');
         box.id = 'sector-heatmap';
         box.className = 'sector-heatmap';
         body.insertBefore(box, grid.nextSibling);
+        grid.style.display = 'none';
+        buildPanoTiles(grid, box);
 
-        var legend = toolbar.querySelector('.pano-legend');
-        var buttons = toolbar.querySelectorAll('.pano-switch button');
-        function applyView() {
-            var heat = panoView === 'heat';
-            grid.style.display = heat ? 'none' : '';
-            box.hidden = !heat;
-            legend.style.visibility = heat ? 'visible' : 'hidden';
-            Array.prototype.forEach.call(buttons, function (btn) {
-                var active = btn.getAttribute('data-view') === panoView;
-                btn.classList.toggle('active', active);
-                btn.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-            if (heat) buildPanoTiles(grid, box);
-        }
-        Array.prototype.forEach.call(buttons, function (btn) {
-            btn.addEventListener('click', function () {
-                panoView = btn.getAttribute('data-view') === 'heat' ? 'heat' : 'list';
-                try { localStorage.setItem(PANO_VIEW_KEY, panoView); } catch (e) { /* ignore */ }
-                applyView();
-            });
-        });
         // 列表数据变化（刷新/stale/空状态）时，热力图跟着同一份数据重建。
         var rebuildQueued = false;
         var observer = new MutationObserver(function () {
-            if (panoView !== 'heat' || rebuildQueued) return;
+            if (rebuildQueued) return;
             rebuildQueued = true;
             setTimeout(function () { rebuildQueued = false; buildPanoTiles(grid, box); }, 0);
         });
         observer.observe(grid, { childList: true });
-        applyView();
     }
 
     ready(function () {

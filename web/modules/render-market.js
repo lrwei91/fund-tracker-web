@@ -396,9 +396,10 @@
             newData = result.data;
             updated = true;
             stale = !!(result.meta && result.meta.stale);
-            statusText = (result.data.sourceLabel || '行情来源') + ' · ' + dataStatus.label(result.meta, '实时');
+            // 卡头一行放不下来源前缀，只留精简状态：实时 / 缓存 · N分钟前。
+            statusText = dataStatus.label(result.meta, '实时').replace('缓存数据', '缓存');
         } catch (e) {
-            statusText = newData ? '接口不可用 · 显示上次结果' : '接口暂不可用';
+            statusText = newData ? '接口不可用 · 上次结果' : '接口暂不可用';
         }
 
         state.liveSectorPanoramaData = newData;
