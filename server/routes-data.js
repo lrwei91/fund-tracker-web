@@ -1580,77 +1580,113 @@ function createDataRoutes(gw) {
     return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
   }
 
+  // 大盘指数分时兜底：同日最近一次成功分时（进程内）。腾讯分时偶发 WAF 拦截/
+  // 上游抖动时，单次失败不再直接把前端打回“分时数据暂不足”。
+  const indexSparkCache = new Map(); // minuteCode -> { date, spark }
+  function todayCst() {
+    return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
   async function marketIndexEnv() {
+    const defs = [
+      // [前端 key, 腾讯行情码, 腾讯分时码, 兜底名, 6 位代码, 东财 secid]
+      ['shangzhi', 's_sh000001', 'sh000001', '上证指数', '000001', '1.000001'],
+      ['shengzheng', 's_sz399001', 'sz399001', '深证成指', '399001', '0.399001'],
+      ['chuangye', 's_sz399006', 'sz399006', '创业板指', '399006', '0.399006'],
+      ['zhuanke50', 's_sh000688', 'sh000688', '科创50', '000688', '1.000688'],
+      ['hushi300', 's_sh000300', 'sh000300', '沪深300', '000300', '1.000300'],
+      ['shangzheng50', 's_sh000016', 'sh000016', '上证50', '000016', '1.000016'],
+      ['zhongzheng500', 's_sh000905', 'sh000905', '中证500', '000905', '1.000905'],
+      ['zhongzheng1000', 's_sh000852', 'sh000852', '中证1000', '000852', '1.000852'],
+      ['shenzheng100', 's_sz399330', 'sz399330', '深证100', '399330', '0.399330'],
+      ['beizheng50', 's_bj899050', 'bj899050', '北证50', '899050', '0.899050'],
+    ];
     let text;
     try {
       text = await gwGbk({
-        url: 'https://qt.gtimg.cn/q=s_sh000001,s_sz399001,s_sz399006,s_sh000688',
+        url: `https://qt.gtimg.cn/q=${defs.map((d) => d[1]).join(',')}`,
       });
     } catch (error) {
       return fail('真实行情接口不可用', error.message, error.status);
     }
-    const defs = [
-      ['shangzhi', 's_sh000001', 'sh000001', '上证指数'],
-      ['shengzheng', 's_sz399001', 'sz399001', '深证成指'],
-      ['chuangye', 's_sz399006', 'sz399006', '创业板指'],
-      ['zhuanke50', 's_sh000688', 'sh000688', '科创50'],
-    ];
     const asOf = nowIso();
-    const items = {};
-    for (const [key, quoteCode, minuteCode, fallbackName] of defs) {
-      let found = null;
-      for (const part of text.split(';')) {
-        if (!part.includes(quoteCode)) continue;
-        const first = part.indexOf('"');
-        const last = part.lastIndexOf('"');
-        if (first < 0 || last <= first) continue;
-        const fields = part.slice(first + 1, last).split('~');
-        const price = strictNum(fields[3]);
-        const changeAmount = strictNum(fields[4]);
-        const changePercent = strictNum(fields[5]);
-        found = {
-          name: fields[1] !== undefined && fields[1] !== '' ? fields[1] : fallbackName,
-          price,
-          changeAmount,
-          changePercent,
-        };
-        break;
-      }
-      if (found === null) {
-        return fail('真实行情接口不可用', `指数无数据 ${quoteCode}`);
-      }
-      let date = '';
-      let spark = [];
-      try {
-        const v = await gwJson({
-          url: `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${minuteCode}`,
-          headers: { referer: 'https://gu.qq.com/' },
-          cacheTtl: 60,
-        });
-        const inner = v && v.data ? v.data[minuteCode] : undefined;
-        const block = inner && inner.data ? inner.data : undefined;
-        if (block) {
-          const rawDate = typeof block.date === 'string' ? block.date : '';
-          if (/^\d{8}$/.test(rawDate)) {
-            date = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
-          }
-          const rows = Array.isArray(block.data) ? block.data : [];
-          spark = rows
-            .map((line) => (typeof line === 'string' ? numStrip(line.split(' ')[1]) : null))
-            .filter((n) => n !== null);
+    // 分时并行拉取：腾讯 -> 东财 -> 同日缓存，三层兜底。
+    const results = await Promise.all(
+      defs.map(async ([key, quoteCode, minuteCode, fallbackName, code6, emSecid]) => {
+        let found = null;
+        for (const part of text.split(';')) {
+          if (!part.includes(quoteCode)) continue;
+          const first = part.indexOf('"');
+          const last = part.lastIndexOf('"');
+          if (first < 0 || last <= first) continue;
+          const fields = part.slice(first + 1, last).split('~');
+          const price = strictNum(fields[3]);
+          const changeAmount = strictNum(fields[4]);
+          const changePercent = strictNum(fields[5]);
+          found = {
+            name: fields[1] !== undefined && fields[1] !== '' ? fields[1] : fallbackName,
+            price,
+            changeAmount,
+            changePercent,
+          };
+          break;
         }
-      } catch {
-        date = '';
-        spark = [];
+        if (found === null) return { key, missing: quoteCode };
+        let date = '';
+        let spark = [];
+        let stale = false;
+        try {
+          const loaded = await loadMinuteTencent(code6, minuteCode);
+          spark = (Array.isArray(loaded.points) ? loaded.points : [])
+            .map((p) => p.price)
+            .filter((n) => typeof n === 'number' && Number.isFinite(n));
+          date = typeof loaded.tradeDate === 'string' ? loaded.tradeDate : '';
+        } catch {
+          spark = [];
+        }
+        if (spark.length < 2) {
+          try {
+            const loaded = await loadMinuteEastmoney(code6, emSecid);
+            const emSpark = (Array.isArray(loaded.points) ? loaded.points : [])
+              .map((p) => p.price)
+              .filter((n) => typeof n === 'number' && Number.isFinite(n));
+            if (emSpark.length >= 2) {
+              spark = emSpark;
+              date = typeof loaded.tradeDate === 'string' ? loaded.tradeDate : date;
+            }
+          } catch {
+            // 继续走缓存兜底
+          }
+        }
+        if (spark.length < 2) {
+          const cached = indexSparkCache.get(minuteCode);
+          const effectiveDate = date || todayCst();
+          if (cached && cached.date === effectiveDate && cached.spark.length >= 2) {
+            spark = cached.spark;
+            date = cached.date;
+            stale = true;
+          }
+        }
+        if (spark.length >= 2) {
+          indexSparkCache.set(minuteCode, { date: date || todayCst(), spark });
+        }
+        return { key, found, date, spark, stale };
+      }),
+    );
+    const items = {};
+    for (const r of results) {
+      if (r.missing) {
+        return fail('真实行情接口不可用', `指数无数据 ${r.missing}`);
       }
-      items[key] = {
-        name: found.name,
-        value: found.price !== null ? found.price.toFixed(2) : '--',
-        priceValue: found.price,
-        change: `${found.changeAmount !== null && found.changeAmount > 0 ? '+' : ''}${found.changeAmount !== null ? found.changeAmount.toFixed(2) : '--'} / ${formatPct(found.changePercent)}`,
-        changePercent: found.changePercent !== null ? found.changePercent : 0,
-        sparkline: spark,
-        sparklineDate: date,
+      items[r.key] = {
+        name: r.found.name,
+        value: r.found.price !== null ? r.found.price.toFixed(2) : '--',
+        priceValue: r.found.price,
+        change: `${r.found.changeAmount !== null && r.found.changeAmount > 0 ? '+' : ''}${r.found.changeAmount !== null ? r.found.changeAmount.toFixed(2) : '--'} / ${formatPct(r.found.changePercent)}`,
+        changePercent: r.found.changePercent !== null ? r.found.changePercent : 0,
+        sparkline: r.spark,
+        sparklineDate: r.date,
+        sparklineStale: r.stale,
         asOf,
       };
     }
@@ -1658,8 +1694,9 @@ function createDataRoutes(gw) {
   }
 
   async function marketBreadthEnv() {
+    // 三大市场 + 10 个大盘指数的成分涨跌数（同一请求，指数行缺失时只跳过该行，不影响三大市场）。
     const url =
-      'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&secids=1.000002%2C0.399107%2C0.899050&fields=f12%2Cf14%2Cf104%2Cf105%2Cf106';
+      'https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&secids=1.000002%2C0.399107%2C0.899050%2C1.000001%2C0.399001%2C0.399006%2C1.000688%2C1.000300%2C1.000905%2C1.000852%2C1.000016%2C0.399330%2C0.899050&fields=f12%2Cf14%2Cf104%2Cf105%2Cf106';
     let v;
     try {
       v = await gwJson({
@@ -1709,6 +1746,16 @@ function createDataRoutes(gw) {
     if (markets.length === 0) {
       return fail('市场涨跌家数暂不可用', '东财未返回三大市场涨跌家数');
     }
+    // 指数成分涨跌数：best-effort，行缺失或字段无效时跳过，不影响三大市场。
+    // 注意：899050 在东财是北交所市场行（已在 markets 里），不是北证50成分行，故不列入指数。
+    const indexBreadth = {};
+    for (const code of ['000001', '399001', '399006', '000688', '000300', '000905', '000852', '000016', '399330']) {
+      const row = rows.find((r) => r && typeof r.f12 === 'string' && r.f12 === code);
+      if (!row) continue;
+      const nums = [row.f104, row.f105, row.f106];
+      if (!nums.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 0)) continue;
+      indexBreadth[code] = { up: row.f104, down: row.f105, flat: row.f106 };
+    }
     const sum = (key) => markets.reduce((total, m) => total + m[key], 0);
     return okExtra(
       {
@@ -1718,6 +1765,7 @@ function createDataRoutes(gw) {
         flat: sum('flat'),
         covered: sum('covered'),
         markets,
+        indexBreadth,
         source: 'eastmoney',
         sourceLabel: '东方财富',
       },
@@ -2606,8 +2654,10 @@ function createDataRoutes(gw) {
     return `${tail.slice(0, 2)}:${tail.slice(2, 4)}`;
   }
 
-  async function loadMinuteTencent(code) {
-    const s = symbol.tencentSymbol(code);
+  // symbolOverride：指数代码不能走按首位判市场的通用映射（如 000300 属沪市而非深市），
+  // 大盘指数直接传显式分时码；个股/ETF 仍走默认映射。
+  async function loadMinuteTencent(code, symbolOverride) {
+    const s = symbolOverride || symbol.tencentSymbol(code);
     const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${s}`;
     const v = await gwJson({ url, headers: { referer: 'https://gu.qq.com/' } });
     const inner = v && v.data ? v.data[s] : undefined;
@@ -2650,8 +2700,8 @@ function createDataRoutes(gw) {
     };
   }
 
-  async function loadMinuteEastmoney(code) {
-    const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?secid=${symbol.eastmoneySecid(code)}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf11&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&iscr=0&iscca=0&ndays=1`;
+  async function loadMinuteEastmoney(code, secidOverride) {
+    const url = `https://push2his.eastmoney.com/api/qt/stock/trends2/get?secid=${secidOverride || symbol.eastmoneySecid(code)}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf11&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&iscr=0&iscca=0&ndays=1`;
     const v = await gwJson({
       url,
       em: true,

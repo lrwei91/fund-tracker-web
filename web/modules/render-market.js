@@ -217,6 +217,9 @@
             '</svg>';
     }
 
+    // 大盘指数分时兜底（前端层）：本次分时为空时，若同日已有成功渲染的分时线，
+    // 先留着旧线不打回“暂不足”；跨日或从未成功时才显示不足文案。
+    var lastGoodSparkline = {}; // data-index -> { date, html }
     function renderIndexSparkline(container, data, cls, prev) {
         var spark = container.querySelector('.index-sparkline');
         if (!spark) {
@@ -224,17 +227,51 @@
             spark.className = 'index-sparkline';
             container.appendChild(spark);
         }
+        var indexKey = container.getAttribute ? container.getAttribute('data-index') : null;
         var svg = buildIndexSparklineSvg(data, cls, prev);
         if (!svg) {
+            var stored = indexKey ? lastGoodSparkline[indexKey] : null;
+            if (stored && stored.date && data && data.sparklineDate && stored.date === data.sparklineDate) {
+                spark.className = 'index-sparkline ' + cls;
+                spark.innerHTML = stored.html;
+                spark.title = '';
+                return;
+            }
             var status = indexSparklineStatus(data);
             spark.className = 'index-sparkline is-unavailable';
             spark.textContent = status.reason;
             spark.title = status.reason;
             return;
         }
-        spark.title = '';
+        spark.title = data && data.sparklineStale ? '分时为缓存数据' : '';
         spark.className = 'index-sparkline ' + cls;
         spark.innerHTML = svg;
+        if (indexKey && data && data.sparklineDate) {
+            lastGoodSparkline[indexKey] = { date: data.sparklineDate, html: svg };
+        }
+    }
+
+    // 指数成分涨跌家数：代码 -> 大盘指数卡片 key。
+    var INDEX_BREADTH_KEY = {
+        '000001': 'shangzhi', '399001': 'shengzheng', '399006': 'chuangye', '000688': 'zhuanke50',
+        '000300': 'hushi300', '000016': 'shangzheng50', '000905': 'zhongzheng500', '000852': 'zhongzheng1000',
+        '399330': 'shenzheng100',
+    };
+    function renderIndexBreadth(map) {
+        if (!map) return;
+        Object.keys(map).forEach(function (code) {
+            var key = INDEX_BREADTH_KEY[code];
+            var item = key ? document.querySelector('[data-index="' + key + '"]') : null;
+            var b = map[code];
+            if (!item || !b || typeof b.up !== 'number' || typeof b.down !== 'number') return;
+            var el = item.querySelector('.index-breadth');
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'index-breadth';
+                item.appendChild(el);
+            }
+            el.innerHTML = '上涨 <b class="positive">' + b.up + '</b> · 下跌 <b class="negative">' + b.down + '</b>';
+        });
     }
 
     function updateIndexUI(id, data) {
@@ -374,6 +411,7 @@
         state.liveMarketBreadthData = newData;
         setSectionStale('.market-breadth-section', stale || (!updated && !!newData));
         renderMarketBreadthUI(state.liveMarketBreadthData, statusText);
+        renderIndexBreadth(newData ? newData.indexBreadth : null);
     }
 
     function validSectorPanoramaData(value) {
@@ -612,6 +650,7 @@
         snapshotIndexPrice: snapshotIndexPrice,
         buildIndexSparklineSvg: buildIndexSparklineSvg,
         indexSparklineStatus: indexSparklineStatus,
+        renderIndexBreadth: renderIndexBreadth,
         // 指数 UI / load
         updateIndexUI: updateIndexUI,
         loadIndexData: loadIndexData,

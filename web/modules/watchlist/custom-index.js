@@ -14,6 +14,47 @@
         try { window.AppStorage.setItem(KEYS.CUSTOM_INDICES_KEY, JSON.stringify(state.customIndexCodes)); } catch (e) {}
     }
 
+    function todayLocalStr() {
+        var d = new Date();
+        var m = d.getMonth() + 1;
+        var day = d.getDate();
+        return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+    }
+
+    // 自选指数分时：与大盘指数同款（走 /stock-minute，腾讯 -> 东财兜底）。
+    // 失败静默：分时拿不到时卡片保持原样，不挤掉行情。
+    function loadCustomIndexMinutes(codes) {
+        var targets = (codes || []).filter(function (code) { return !!state.customIndexFreshCodes[code]; });
+        if (!targets.length || !window.AppDataClient) return;
+        Promise.all(targets.map(function (code) {
+            return window.AppDataClient.fetch('/stock-minute', { code: code })
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (result) {
+                    if (!result || !result.success || !result.data || !Array.isArray(result.data.points)) return;
+                    var prices = result.data.points.map(function (p) { return p.price; })
+                        .filter(function (n) { return typeof n === 'number' && Number.isFinite(n); });
+                    if (!prices.length) return;
+                    var cached = state.customIndexCache[code] || {};
+                    cached.sparkline = prices;
+                    cached.sparklineDate = result.data.tradeDate || todayLocalStr();
+                    state.customIndexCache[code] = cached;
+                })
+                .catch(function () {});
+        })).then(function () {
+            persistCustomIndexCache();
+            renderCustomIndex();
+        });
+    }
+
+    // 报价刷新会整体替换缓存对象，分时字段要先留着，否则分时一刷新就丢。
+    function preserveSparkline(code, data) {
+        var prev = state.customIndexCache[code];
+        if (prev && prev.sparkline) {
+            data.sparkline = prev.sparkline;
+            data.sparklineDate = prev.sparklineDate;
+        }
+    }
+
     function persistCustomIndexCache() {
         try {
             var snapshot = JSON.stringify(state.customIndexCache);
@@ -38,6 +79,7 @@
         codes.forEach(function (code) {
             var data = result.data[code];
             if (data && data.price !== '0.00' && Number.isFinite(Number(data.priceValue))) {
+                preserveSparkline(code, data);
                 state.customIndexCache[code] = data;
                 freshCodes[code] = true;
             }
@@ -57,6 +99,7 @@
             window.AppMarket.persistIndexPrevIfDue('custom', window.AppMarket.snapshotIndexPrice(snapshot));
         }
         renderCustomIndex();
+        loadCustomIndexMinutes(codes);
         return true;
     }
 
@@ -119,14 +162,29 @@
             : '─';
         var arrowHtml = arrow ? ' <span class="trend-arrow">' + utils.escapeHtml(arrow) + '</span>' : '';
         var changeTitle = changeStr + ' / ' + pctStr;
-        var sparkSvg = fresh && marketMod && typeof marketMod.buildIndexSparklineSvg === 'function'
-            ? marketMod.buildIndexSparklineSvg(cached || {}, cls, typeof prev === 'number' ? prev : null)
-            : '';
+        // 分时只认当日数据：隔夜缓存的分时线不画，等新分时拉到再显示；
+        // 当日分时拉到了但不足 2 点时，与大盘指数一样显示不足文案。
+        var sparkContent = '';
+        var sparkCls = cls;
+        if (fresh && cached && marketMod) {
+            var sparkData = (cached.sparklineDate === todayLocalStr()) ? cached : {};
+            if (typeof marketMod.buildIndexSparklineSvg === 'function') {
+                sparkContent = marketMod.buildIndexSparklineSvg(sparkData, cls, typeof prev === 'number' ? prev : null);
+            }
+            if (!sparkContent && Array.isArray(cached.sparkline) && cached.sparklineDate === todayLocalStr()
+                && typeof marketMod.indexSparklineStatus === 'function') {
+                var sparkStatus = marketMod.indexSparklineStatus(cached);
+                if (sparkStatus.reason) {
+                    sparkContent = utils.escapeHtml(sparkStatus.reason);
+                    sparkCls = 'is-unavailable';
+                }
+            }
+        }
         return '<div class="index-item custom-index-data" data-code="' + utils.escapeHtml(code) + '">' +
             '<div class="index-name">' + utils.escapeHtml(name) + '</div>' +
             '<div class="index-value ' + cls + '">' + utils.escapeHtml(displayPrice) + arrowHtml + '</div>' +
             '<div class="index-change ' + cls + '" title="' + utils.escapeHtml(changeTitle) + '">' + utils.escapeHtml(pctStr) + '</div>' +
-            '<div class="index-sparkline ' + cls + '">' + sparkSvg + '</div>' +
+            '<div class="index-sparkline ' + sparkCls + '">' + sparkContent + '</div>' +
             '<button type="button" class="custom-index-remove" data-remove-custom-index="' + utils.escapeHtml(code) + '" aria-label="删除 ' + utils.escapeHtml(code) + '">✕</button>' +
             '</div>';
     }
@@ -268,6 +326,7 @@
             if (!result.success || !result.data) return;
             var d = result.data[code];
             if (d && d.price !== '0.00' && Number.isFinite(Number(d.priceValue))) {
+                preserveSparkline(code, d);
                 state.customIndexCache[code] = d;
                 state.customIndexFreshCodes[code] = true;
             } else {
@@ -284,6 +343,7 @@
                 window.AppMarket.setIndexPrevForCode('custom', code, d.priceValue);
             }
             renderCustomIndex();
+            loadCustomIndexMinutes([code]);
         } catch (e) { /* ignore */ }
     }
 
@@ -305,6 +365,7 @@
                 Object.keys(result.data).forEach(function (code) {
                     var d = result.data[code];
                     if (d && d.price !== '0.00' && Number.isFinite(Number(d.priceValue))) {
+                        preserveSparkline(code, d);
                         state.customIndexCache[code] = d;
                         freshCodes[code] = true;
                     }
@@ -316,6 +377,7 @@
                 }
                 persistCustomIndexCache();
                 renderCustomIndex();
+                loadCustomIndexMinutes(Object.keys(freshCodes));
             })
             .catch(function () { /* ignore */ });
     }
@@ -337,4 +399,5 @@
     W.applyCustomIndexQuoteBatch = applyCustomIndexQuoteBatch;
     W.loadSingleCustomIndex = loadSingleCustomIndex;
     W.refreshStaleCustomIndex = refreshStaleCustomIndex;
+    W.loadCustomIndexMinutes = loadCustomIndexMinutes;
 })();
