@@ -71,7 +71,9 @@ function isRedlined(title) {
   return REDLINE.some((kw) => kw && t.includes(kw));
 }
 
-const DIGEST_PROMPT = '你是产业链资讯编辑。仅基于输入的新闻标题清单（按赛道分组，含来源名与链接），为每个赛道提炼 3-5 条中文「今日要点」：跨源聚合去重、突出核心公司与关键数据、一条要点讲一件事、不编造清单里没有的事实。再把 translateLinks 里列出的英文标题翻译为中文（已是中文的原样返回），不要翻译清单之外的链接。只返回 JSON，结构严格为：{"sectors":{"赛道key":{"points":[{"text":"要点中文（<=80字）","links":["原文链接"]}]}},"translations":{"原文链接":"中文标题"}}。points 的 links 只能填输入清单里出现过的链接，且必须属于该赛道；没有足够新闻的赛道 points 给空数组。';
+// 按赛道逐个提炼（单次全量调用实测会被模型输出上限截断成残缺 JSON）：
+// 每赛道一次调用，输出仅该赛道的要点+翻译；单赛道失败不拖垮整份 digest。
+const DIGEST_PROMPT = '你是产业链资讯编辑。仅基于输入的某个赛道的新闻标题清单（含来源名与链接），提炼 3-5 条中文「今日要点」：跨源聚合去重、突出核心公司与关键数据、一条要点讲一件事、不编造清单里没有的事实。再把 translateLinks 里列出的英文标题翻译为中文（已是中文的原样返回）。只返回 JSON，结构严格为：{"points":[{"text":"要点中文（<=80字）","links":["原文链接"]}],"translations":{"原文链接":"中文标题"}}。points 的 links 只能填输入清单里出现过的链接；新闻不足时 points 给空数组。';
 
 class IndustryNews {
   constructor({ dataDir, ai }) {
@@ -169,6 +171,7 @@ class IndustryNews {
   /* ------------------------------------------------------------------ 提炼 */
 
   // 用 items 生成 digest；aiCaller 由外部注入以便测试：async (prompt, facts) => rawText
+  // 逐赛道调用：单赛道失败记 failedSectors 并继续；全部失败才抛错。
   async buildDigest(aiCaller) {
     const data = this.items();
     if (!data || !Array.isArray(data.items) || data.items.length === 0) throw new Error('暂无资讯数据，先抓取');
@@ -178,38 +181,47 @@ class IndustryNews {
       const list = bySector.get(it.sector);
       if (list.length < 18) list.push({ title: it.title, source: it.source, link: it.link });
     }
-    // 翻译只覆盖看板实际展示的前 12 条/赛道，控制单次调用的输出规模。
-    const translateLinks = {};
-    for (const [key, list] of bySector) translateLinks[key] = list.slice(0, 12).map((i) => i.link);
-    const facts = { sectors: Object.fromEntries(bySector), translateLinks };
-    const raw = await aiCaller(DIGEST_PROMPT, facts);
-    let obj;
-    let text = String(raw || '').trim();
-    if (text.startsWith('```')) text = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
-    try { obj = JSON.parse(text); } catch { throw new Error('模型未返回有效 JSON'); }
-    // 核对：要点链接必须在对应赛道的输入链接集合内，否则整条丢弃；翻译同理。
-    const digest = { generatedAt: new Date().toISOString(), sectors: {}, translations: {} };
-    const sectorLinks = new Map([...bySector].map(([k, list]) => [k, new Set(list.map((i) => i.link))]));
-    const allLinks = new Set(data.items.map((i) => i.link));
+    const digest = { generatedAt: new Date().toISOString(), sectors: {}, translations: {}, failedSectors: [] };
+    let succeeded = 0;
     for (const ind of INDUSTRIES) {
-      const sec = obj?.sectors?.[ind.key];
-      const points = [];
-      if (sec && Array.isArray(sec.points)) {
-        for (const p of sec.points.slice(0, 5)) {
-          const t = typeof p?.text === 'string' ? p.text.trim() : '';
-          const links = Array.isArray(p?.links) ? p.links.filter((l) => sectorLinks.get(ind.key)?.has(l)) : [];
-          if (t && t.length <= 200 && links.length > 0) points.push({ text: t, links: [...new Set(links)] });
+      const list = bySector.get(ind.key) || [];
+      digest.sectors[ind.key] = { points: [] };
+      if (list.length === 0) continue;
+      // 翻译只覆盖看板实际展示的前 12 条，控制单次调用的输出规模。
+      const facts = {
+        sector: { key: ind.key, name: ind.name },
+        items: list,
+        translateLinks: list.slice(0, 12).map((i) => i.link),
+      };
+      try {
+        const raw = await aiCaller(DIGEST_PROMPT, facts);
+        let text = String(raw || '').trim();
+        if (text.startsWith('```')) text = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+        const obj = JSON.parse(text);
+        const linkSet = new Set(list.map((i) => i.link));
+        const points = [];
+        if (Array.isArray(obj?.points)) {
+          for (const p of obj.points.slice(0, 5)) {
+            const t = typeof p?.text === 'string' ? p.text.trim() : '';
+            const links = Array.isArray(p?.links) ? p.links.filter((l) => linkSet.has(l)) : [];
+            if (t && t.length <= 200 && links.length > 0) points.push({ text: t, links: [...new Set(links)] });
+          }
         }
-      }
-      digest.sectors[ind.key] = { points };
-    }
-    if (obj?.translations && typeof obj.translations === 'object') {
-      for (const [link, zh] of Object.entries(obj.translations)) {
-        if (allLinks.has(link) && typeof zh === 'string' && zh.trim() && zh.length <= 120) {
-          digest.translations[link] = zh.trim();
+        digest.sectors[ind.key] = { points };
+        if (obj?.translations && typeof obj.translations === 'object') {
+          for (const [link, zh] of Object.entries(obj.translations)) {
+            if (linkSet.has(link) && typeof zh === 'string' && zh.trim() && zh.length <= 120) {
+              digest.translations[link] = zh.trim();
+            }
+          }
         }
+        succeeded++;
+      } catch (e) {
+        digest.failedSectors.push(ind.key);
+        console.warn(`[industry-news] 赛道 ${ind.key} 提炼失败：${e.message}`);
       }
     }
+    if (succeeded === 0) throw new Error('全部赛道提炼失败');
     this._writeJson('digest.json', digest);
     this.digestCache = digest;
     return digest;
@@ -224,7 +236,7 @@ class IndustryNews {
       release = automatic ? this.ai.tryAutomatic() : await this.ai.acquireManual();
       if (!release) return null; // 自动模式下模型忙：跳过，下轮再试
       const caller = async (prompt, facts) => {
-        const { raw, model } = await this.ai.modelRequest(prompt, facts, 10000);
+        const { raw, model } = await this.ai.modelRequest(prompt, facts, 4000);
         this._lastModel = model;
         return raw;
       };
@@ -259,6 +271,12 @@ class IndustryNews {
     const digest = this.digest();
     if (digest && String(digest.generatedAt || '').slice(0, 10) === today) return;
     if (this.fetching || this.digesting) return;
+    // 失败退避：同一天最多自动尝试 4 次、间隔至少 30 分钟，避免整夜反复烧 AI 额度。
+    const state = this._readJson('auto-state.json') || {};
+    const attempts = state.date === today ? Number(state.attempts) || 0 : 0;
+    const lastAt = state.date === today ? Date.parse(state.lastAt || 0) : 0;
+    if (attempts >= 4 || Date.now() - lastAt < 30 * 60 * 1000) return;
+    this._writeJson('auto-state.json', { date: today, attempts: attempts + 1, lastAt: new Date().toISOString() });
     await this._autoRun();
   }
 
