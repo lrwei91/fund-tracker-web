@@ -35,7 +35,13 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
 .electron-app .desktop-nav-meta { display: block; color: var(--text-tertiary); font-size: 9px; line-height: 1.3; }
 .electron-app .desktop-nav-btn.active .desktop-nav-meta { color: #484900; }
 .electron-app .desktop-nav-icon, .electron-app .desktop-nav-icon svg { width: 20px; height: 20px; }
-.electron-app .desktop-settings-btn { margin-top: auto; }
+.electron-app .desktop-settings-btn { margin-top: 0; }
+/* 当前用户：侧栏左下角、设置上方；点击退出并切换用户 */
+.electron-app .sidebar-user-btn { margin-top: auto; background: var(--color-surface); border-color: var(--border); }
+.electron-app .sidebar-user-btn[hidden] { display: none; }
+.electron-app .sidebar-user-btn:hover { background: var(--color-accent-soft); }
+.electron-app .sidebar-user-avatar { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--text-primary); color: var(--color-canvas); font-size: 12px; font-weight: 750; text-transform: uppercase; }
+.electron-app .sidebar-user-btn .desktop-nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 104px; }
 .electron-app .header { height: 72px; min-height: 72px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--color-canvas); }
 .electron-app .header h1 { font-size: 17px; font-weight: 750; }
 .electron-app .header-meta { flex-wrap: wrap; }
@@ -126,6 +132,7 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
     .electron-app .desktop-brand { padding: 0 14px 24px; }
     .electron-app .desktop-brand > div { display: none; }
     .electron-app .desktop-nav-btn { flex-direction: column; justify-content: center; gap: 7px; height: 62px; padding: 8px 0; }
+    .electron-app .sidebar-user-btn .desktop-nav-label { max-width: 62px; }
     .electron-app .desktop-nav-copy { align-items: center; }
     .electron-app .desktop-nav-label { font-size: 10px; }
     .electron-app .desktop-nav-meta { display: none; }
@@ -144,6 +151,8 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
     .electron-app .desktop-nav { flex-direction: row; padding: 3px; gap: 2px; }
     .electron-app .desktop-nav-btn { flex: 1 1 0; width: auto; height: 54px; min-width: 0; }
     .electron-app .desktop-settings-btn { margin-top: 0; }
+    .electron-app .sidebar-user-btn { margin-top: 0; }
+    .electron-app .sidebar-user-avatar { width: 22px; height: 22px; font-size: 10px; }
     .electron-app .desktop-nav-icon, .electron-app .desktop-nav-icon svg { width: 18px; height: 18px; }
     .electron-app .header { height: 76px; min-height: 76px; padding: 10px 12px; gap: 8px; }
     .electron-app .header h1 { font-size: 15px; }
