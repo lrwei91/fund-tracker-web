@@ -82,10 +82,7 @@
 
     // ---------- 主 tab 路由 ----------
     var VALID_TABS = ['dashboard', 'market', 'review', 'research', 'alerts', 'news'];
-    var TAB_TITLES = { dashboard: '我的盯盘', market: '市场总览', review: '收盘复盘', research: '研究工作台', alerts: '提醒中心', news: '财经资讯' };
-
-    // ---------- 新闻翻页 ----------
-    var NEWS_PAGE_SIZE = { jin10: 20, eastmoney: 30, cls: 20 };
+    var TAB_TITLES = { dashboard: '我的盯盘', market: '市场总览', review: '收盘复盘', research: '研究工作台', alerts: '提醒中心', news: '产业链资讯' };
 
     // ---------- 自选股节流 ----------
     var WATCH_REFRESH_THROTTLE_KEY = 'fund_tracker_watch_refresh_throttle';
@@ -136,12 +133,13 @@
     var alertOpacity = 0.92;
     var watchAlertState = {};
 
-    // 新闻源 / 列表 state
-    var currentNewsSource = 'jin10';
+    // 资讯页 state：只保留产业链（金十/财联社/东财快讯源已移除），
+    // currentNewsSource 固定为 industry 供刷新协调器等旧调用方识别；
+    // currentIndustrySector 为赛道子 Tab 选中项（all = 全部赛道总览）。
+    var currentNewsSource = 'industry';
+    var currentIndustrySector = 'all';
     var newsState = {
-        jin10: { items: [], cursor: null, hasMore: true, isLoading: false, error: false, actualSource: 'jin10', degraded: false, stale: false, staleAgeSeconds: 0 },
-        eastmoney: { items: [], cursor: null, hasMore: true, isLoading: false, error: false, actualSource: 'eastmoney', degraded: false, stale: false, staleAgeSeconds: 0 },
-        cls: { items: [], cursor: null, hasMore: true, isLoading: false, error: false, actualSource: 'cls', degraded: false, stale: false, staleAgeSeconds: 0 },
+        industry: { board: null, isLoading: false, error: false, actionBusy: '' },
     };
 
     // ============ 启动时 IIFE 还原 ============
@@ -250,8 +248,9 @@
     }
 
     function restorePersistentState() {
-        // 每次启动固定从金十快讯进入，来源切换只在当前会话生效。
-        window.AppState.currentNewsSource = 'jin10';
+        // 资讯页固定为产业链，赛道切换只在当前会话生效。
+        window.AppState.currentNewsSource = 'industry';
+        window.AppState.currentIndustrySector = 'all';
         try {
             var restoredCodes = JSON.parse(storage.getItem(CUSTOM_INDICES_KEY) || '[]');
             if (Array.isArray(restoredCodes)) {
@@ -319,7 +318,6 @@
             STATUS_TOAST_TTL_MS: STATUS_TOAST_TTL_MS,
             VALID_TABS: VALID_TABS,
             TAB_TITLES: TAB_TITLES,
-            NEWS_PAGE_SIZE: NEWS_PAGE_SIZE,
             WATCH_REFRESH_THROTTLE_KEY: WATCH_REFRESH_THROTTLE_KEY,
             WATCH_REFRESH_THROTTLE_MS: WATCH_REFRESH_THROTTLE_MS,
             WATCH_ALERT_SCHEMA_VERSION: WATCH_ALERT_SCHEMA_VERSION,
@@ -352,6 +350,7 @@
         alertOpacity: alertOpacity,
         watchAlertState: watchAlertState,
         currentNewsSource: currentNewsSource,
+        currentIndustrySector: currentIndustrySector,
         newsState: newsState,
         // ===== 渐进治理:受控访问层 API =====
         getState: getState,

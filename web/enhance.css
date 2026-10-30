@@ -138,6 +138,16 @@
 }
 
 /* ============ 产业链资讯（融合 investment-news） ============ */
+/* 赛道子 Tab：原快讯源 Tab 的位置，现为 全部 + 12 赛道，可换行、带条数徽标与赛道色点 */
+.electron-app .industry-sector-tabs { flex-wrap: wrap; row-gap: 2px; }
+.electron-app .industry-sector-tab { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.electron-app .industry-tab-count { color: var(--text-tertiary); font-size: 10px; font-style: normal; font-family: var(--mono); }
+.electron-app .industry-sector-tab.active .industry-tab-count { color: var(--amber); }
+.electron-app .industry-sector-more { padding: 2px 0; border: 0; background: transparent; color: var(--amber);
+  font-size: 11px; cursor: pointer; }
+.electron-app .industry-sector-more:hover { text-decoration: underline; }
+.electron-app .industry-sector-more--foot { display: block; margin-top: 8px; }
+.electron-app .industry-sector > header .industry-sector-more { margin-left: 8px; }
 .electron-app .industry-board { padding-top: 8px; }
 .electron-app .industry-board-meta { display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
@@ -172,6 +182,10 @@
   font-size: 12px; line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 @media (min-width: 1100px) {
   .electron-app .industry-sectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 单赛道模式：占满整行，资讯条目双栏排布提高密度 */
+  .electron-app .industry-sectors--single { grid-template-columns: 1fr; }
+  .electron-app .industry-sectors--single .industry-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+  .electron-app .industry-sectors--single .industry-points ul { columns: 1; }
 }
 @media (max-width: 640px) {
   .electron-app .industry-board-meta { align-items: flex-start; flex-direction: column; }

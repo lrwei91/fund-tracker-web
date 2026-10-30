@@ -59,15 +59,15 @@ Web 复刻对应关系（建议）：`fetch_data` → 一个 `POST /api/fetch` �
 | `/intraday-screening` | 盘中筛选快照（抓公开报告页） | render-signals：`{}` |
 | `/hot-rank` | 热榜（同花顺/东财） | render-signals：`{source, limit:30}` |
 | `/fund-flow-120d` | 个股资金流（默认 60 天） | stock-detail：`{codes:code, days:60}` |
-| `/cls-news` | 财联社快讯（备东财） | render-news（来源切换）：`{limit, cursor?}` |
-| `/global-news` | 东财全球快讯（备财联社） | render-news：`{limit, cursor?}` |
-| `/news` | 金十快讯（备财联社） | render-news：`{limit, cursor?}` |
+| `/cls-news` | 财联社快讯（备东财） | 后端保留，资讯页已移除入口：`{limit, cursor?}` |
+| `/global-news` | 东财全球快讯（备财联社） | 后端保留，资讯页已移除入口：`{limit, cursor?}` |
+| `/news` | 金十快讯（备财联社） | 后端保留，资讯页已移除入口：`{limit, cursor?}` |
 
 后端另支持 3 条前端未直接调用的路由（被研究快照/雷达内部调用，第二章 §0.3 的策略表含其策略）：`/stock-risk`（个股风险：公告+解禁，`handlers/detail.rs::risk`）、`/dragon-tiger`（龙虎榜，`handlers/signals.rs::dragon_tiger`）、`/stock-fundamentals`（基本面，stale 3600s）。基金类路由（fund-*）已退役，dispatch 返回 `{success:false, message:"API not found"}`。
 
 `/market-archive`（本地存档，server/archive.js；2026-10-30 融合计划第 0 期新增）：每个交易日 15:35 后把东财四池定稿名单与情绪读数落盘 `DATA_DIR/archive/YYYY-MM-DD.json`（启动与每 10 分钟巡检，近 31 天缺失/不完整自动回补，每轮 ≤3 天；涨停池失败整日不落盘，其余池失败记 `missing` 且 `complete=false`）。参数：`{action:"list", days?}` 返回各日 summary；`{action:"day", date:"YYYY-MM-DD"}` 返回全量（pools/summary/breadth，breadth 仅当日抓取有值）；`{action:"capture", date}` 手动抓取某交易日。summary 含 ztCount/zbCount/dtCount/yztCount、breakRate、maxHeight、ladder（连板梯队分布）、promoteRate 与 promoteByLevel（按昨日连板数分组的再涨停率，口径 >=9.8%）、yztMedianPct/yztAvgPct/yztUpRate（昨日涨停今日表现）。注意：东财池接口对历史日期只保留约 14 个交易日（2026-10-30 实测 10-12 可取、10-09 返回空池），超期返回空池与失败不可区分，故涨停池为空一律按未取到处理、不落盘；过去日期失败满 3 次在 `archive/state.json` 标 gaveUp 停止重试。
 
-`/industry-news`（本地服务，server/industry-news.js；2026-10-30 融合计划第 1 期新增）：源库 `server/industry-sources.json` 移植自 investment-news（MIT；106 源 / 12 赛道 / 合规红线词），按广州服务器实测可达性标注 enabled（84/106 可达）。服务端抓 RSS/Atom（近 7 天、每源 ≤6 条、红线词过滤、按链接去重）落盘 `DATA_DIR/industry-news/items.json`；交易日 08:20 自动抓取并调用本站 AI 生成 `digest.json`（各赛道 3–5 条今日要点 + 展示标题翻译；要点链接经程序核对必须属于该赛道输入集合，编造链接整条丢弃）。参数：`{action:"board"}` 返回看板（赛道/要点/双语条目/源状态）；`{action:"refresh"}` 手动抓取；`{action:"digest"}` 手动重新提炼。前端入口为资讯页「产业链」页签。
+`/industry-news`（本地服务，server/industry-news.js；2026-10-30 融合计划第 1 期新增）：源库 `server/industry-sources.json` 移植自 investment-news（MIT；106 源 / 12 赛道 / 合规红线词），按广州服务器实测可达性标注 enabled（84/106 可达）。服务端抓 RSS/Atom（近 7 天、每源 ≤6 条、红线词过滤、按链接去重）落盘 `DATA_DIR/industry-news/items.json`；交易日 08:20 自动抓取并调用本站 AI 生成 `digest.json`（各赛道 3–5 条今日要点 + 展示标题翻译；要点链接经程序核对必须属于该赛道输入集合，编造链接整条丢弃）。参数：`{action:"board"}` 返回看板（赛道/要点/双语条目/源状态）；`{action:"refresh"}` 手动抓取；`{action:"digest"}` 手动重新提炼。前端入口为资讯页（标题「产业链」，子 Tab = 全部赛道 + 12 赛道；2026-10-31 起资讯页只保留产业链，原金十/财联社/东财快讯入口已移除）。
 
 `/market-review`（本地服务，server/review.js；2026-10-31 融合计划第 2 期新增）：基于存档层数据。参数：`{action:"board", date?}` 返回程序看板（summary、历史分位 percentiles、连板天梯 ladder 与断层 ladderGaps、封板质量 sealQuality、近 5 日行业题材轮动 themes、当日 AI 复盘 report、该日相关的验证记录与累计战绩 scoreboard）；`{action:"generate", date}` 生成 AI 五段复盘（情绪/资金/题材/龙虎榜/龙头）并落盘 `DATA_DIR/review/YYYY-MM-DD.json`——生成后正文每个数字与资料包回查（按量级、含舍入容差），对不上的替换为「〔未核实〕」并计数；`{action:"verify"}` 返回验证记录与战绩。明日验证：复盘的 tomorrow.conditions（指标白名单 ztCount/maxHeight/promoteRate/breakRate/yztMedianPct/dtCount）写入 `review/verify.json`，次日存档 complete 后自动对账（全中/部分命中/未中）；目标日 09:15 后生成的标 late 不计战绩。自动生成：交易日 16:05 后、存档就绪时触发（失败退避每日 ≤3 次）。前端入口为新增「复盘」分页；board 另带 snapshots 字段（六时点情绪快照，见 /intraday）。
 

@@ -34,7 +34,7 @@
 <button class="desktop-nav-btn tab-btn" data-tab="review" type="button" aria-label="复盘"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 5h14M5 12h14M5 19h9" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">复盘</span><span class="desktop-nav-meta">情绪 / 梯队 / 明日验证</span></span></button>
 <button class="desktop-nav-btn tab-btn" data-tab="research" type="button" aria-label="研究"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h4" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">研究</span><span class="desktop-nav-meta">候选 / 个股 / 每日报告</span></span></button>
 <button class="desktop-nav-btn tab-btn" data-tab="alerts" type="button" aria-label="提醒"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4zM10 21h4" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">提醒</span><span class="desktop-nav-meta">条件规则 / 触发记录</span></span></button>
-<button class="desktop-nav-btn tab-btn" data-tab="news" type="button" aria-label="资讯"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 5h16v14H4zM8 9h8M8 13h8" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">资讯</span><span class="desktop-nav-meta">快讯 / 消息 / 来源</span></span></button><button class="desktop-nav-btn desktop-settings-btn" id="settings-btn" aria-label="设置" title="设置" type="button">
+<button class="desktop-nav-btn tab-btn" data-tab="news" type="button" aria-label="资讯"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 5h16v14H4zM8 9h8M8 13h8" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">资讯</span><span class="desktop-nav-meta">产业链 / 赛道信号</span></span></button><button class="desktop-nav-btn desktop-settings-btn" id="settings-btn" aria-label="设置" title="设置" type="button">
             <span class="desktop-nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                     <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z" />
@@ -406,22 +406,31 @@
             </div>
         </section></div>
 <div class="tab-panel" id="tab-alerts"><div class="workspace-heading"><div><p class="eyebrow">ALERT CENTER</p><h2>只关注你设定的条件</h2></div></div><section class="card"><div class="card-header"><h2>价格提醒与历史</h2></div><div class="card-body" id="price-alert-workspace"></div></section></div>
-<div class="tab-panel" id="tab-news"><div class="workspace-heading"><div><p class="eyebrow">NEWS WIRE</p><h2>市场消息，保留原始来源</h2></div></div><section class="card news-section">
+<div class="tab-panel" id="tab-news"><div class="workspace-heading"><div><p class="eyebrow">INDUSTRY CHAIN</p><h2>全球产业链，按赛道看信号</h2></div></div><section class="card news-section">
             <div class="card-header">
-                <h2>财经快讯</h2>
+                <h2>产业链</h2>
             </div>
             <div class="card-body">
-                <!-- 新闻来源切换 -->
-                <div class="news-source-tabs">
-                    <button class="news-source-tab active" data-source="jin10">金十快讯</button>
-                    <button class="news-source-tab" data-source="cls">财联社</button>
-                    <button class="news-source-tab" data-source="eastmoney">东财资讯</button>
-                    <button class="news-source-tab" data-source="industry">产业链</button>
+                <!-- 产业链赛道切换（原金十/财联社/东财快讯源已移除） -->
+                <div class="news-source-tabs industry-sector-tabs" id="industry-sector-tabs" role="tablist" aria-label="产业链赛道">
+                    <button class="news-source-tab industry-sector-tab active" data-sector="all" role="tab">全部赛道</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="ai" role="tab">AI / 大模型</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="semi" role="tab">半导体 / 芯片</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="robot" role="tab">机器人 / 自动化</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="auto" role="tab">汽车 / 新能源车</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="energy" role="tab">能源 / 新能源</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="bio" role="tab">生物医药 / 健康</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="space" role="tab">航天 / 太空</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="security" role="tab">网络安全</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="tech" role="tab">科技 / 互联网</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="consumer" role="tab">消费电子 / 数码</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="macro" role="tab">财经 / 宏观</button>
+                    <button class="news-source-tab industry-sector-tab" data-sector="science" role="tab">科学 / 前沿</button>
                 </div>
                 <div class="news-list" id="news-list">
                     <div class="ui-state ui-state--loading" data-ui-state="loading" role="status">
-                        <strong class="ui-state-title">正在加载快讯</strong>
-                        <span class="ui-state-detail">最新消息返回后会在这里更新。</span>
+                        <strong class="ui-state-title">正在加载产业链资讯</strong>
+                        <span class="ui-state-detail">全球产业信号返回后会在这里更新。</span>
                         <div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
                     </div>
                 </div>
