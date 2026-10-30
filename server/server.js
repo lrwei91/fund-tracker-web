@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
-const { ConfigStore } = require('./store');
+const { UserStores } = require('./store');
 const { Auth } = require('./auth');
 
 const PORT = Number(process.env.PORT || 18765);
@@ -16,14 +16,16 @@ const HOST = process.env.HOST || '127.0.0.1';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const WEB_DIR = path.join(__dirname, '..', 'web');
 
-const store = new ConfigStore(path.join(DATA_DIR, 'config.json'));
 const auth = new Auth(path.join(DATA_DIR, 'auth.json'));
+const stores = new UserStores(DATA_DIR, () => auth.usernames());
+const storeFor = (username) => stores.get(username);
 
 // ---- SSE 事件总线（替代 Tauri 事件）----
-const sseClients = new Set();
-function emit(event, payload) {
+const sseClients = new Map(); // res -> username
+function emit(username, event, payload) {
   const frame = `event: ${event}\ndata: ${JSON.stringify(payload ?? {})}\n\n`;
-  for (const res of sseClients) {
+  for (const [res, user] of sseClients) {
+    if (user !== username) continue;
     try {
       // 慢客户端写缓冲超限则断开，防止事件帧在内存里无限堆积。
       if (res.writableLength > 4 * 1024 * 1024) { res.destroy(); sseClients.delete(res); continue; }
@@ -63,12 +65,12 @@ const { MarketArchive } = require('./archive');
 const { IndustryNews } = require('./industry-news');
 const { MarketReview } = require('./review');
 const { IntradayService } = require('./intraday');
-const ai = new AiService({ store, dataDir: DATA_DIR, gateway, getSnapshot });
-const alerts = new PriceAlerts({ store, getQuotes, emit });
-const reports = new ReportCenter({ store, ai, getSnapshot, getQuotes, emit });
+const ai = new AiService({ getStore: storeFor, systemUsername: 'lrwei91', dataDir: DATA_DIR, gateway, getSnapshot });
+const alerts = new PriceAlerts({ stores, getQuotes, emit });
+const reports = new ReportCenter({ stores, ai, getSnapshot, getQuotes, emit });
 const archive = new MarketArchive({ dataDir: DATA_DIR, internals: dataRoutes ? dataRoutes.internals : null });
 const industryNews = new IndustryNews({ dataDir: DATA_DIR, ai });
-const intraday = new IntradayService({ dataDir: DATA_DIR, store, internals: dataRoutes ? dataRoutes.internals : null, archive, getQuotes });
+const intraday = new IntradayService({ dataDir: DATA_DIR, stores, internals: dataRoutes ? dataRoutes.internals : null, archive, getQuotes });
 const marketReview = new MarketReview({ dataDir: DATA_DIR, ai, internals: dataRoutes ? dataRoutes.internals : null, archive, getSnapshots: (d) => intraday.snapshots(d) });
 
 // ---- 响应信封 finalize（对齐 policy.rs）----
@@ -133,7 +135,7 @@ function stableQueryKey(routePath, query) {
 function rebindTraceId(body) {
   return body.replace(/"traceId":"[^"]*"/, `"traceId":"${crypto.randomUUID()}"`);
 }
-async function dispatchData(routePath, query) {
+async function dispatchData(routePath, query, username) {
   // market-data 仅 breadth / sector-panorama 允许 stale 回放（指数等实时类不回放）。
   let staleFor = STALE_FOR[routePath] || 0;
   if (routePath === '/market-data') {
@@ -148,13 +150,13 @@ async function dispatchData(routePath, query) {
     }
   }
   let result;
-  if (routePath === '/price-alerts') result = alerts.handle(query);
-  else if (routePath === '/stock-ai-research') result = await ai.handle(query);
-  else if (routePath === '/research-reports') result = await reports.handle(query);
+  if (routePath === '/price-alerts') result = alerts.handle(query, username);
+  else if (routePath === '/stock-ai-research') result = await ai.handle(query, username);
+  else if (routePath === '/research-reports') result = await reports.handle(query, username);
   else if (routePath === '/market-archive') result = await archive.handle(query);
   else if (routePath === '/industry-news') result = await industryNews.handle(query);
   else if (routePath === '/market-review') result = await marketReview.handle(query);
-  else if (routePath === '/intraday') result = await intraday.handle(query);
+  else if (routePath === '/intraday') result = await intraday.handle(query, username);
   else result = await fetchDataRoute(routePath, query);
   result = finalize(result);
   if (key) {
@@ -192,7 +194,8 @@ function parseCookies(req) {
   }
   return out;
 }
-function isAuthed(req) { return auth.check(parseCookies(req).ft_session); }
+function sessionUser(req) { return auth.sessionUser(parseCookies(req).ft_session); }
+function isAuthed(req) { return sessionUser(req) !== null; }
 function sessionCookie(req, token) {
   const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
   return `ft_session=${token}; HttpOnly; Path=/; Max-Age=2592000; SameSite=Lax${secure}`;
@@ -279,24 +282,16 @@ const server = http.createServer(async (req, res) => {
     if (p === '/health') { sendJson(res, 200, { ok: true, dataReady: !!dataRoutes }); return; }
 
     if (p === '/api/auth/status') {
-      sendJson(res, 200, { setup: auth.isSetup(), authed: isAuthed(req) });
-      return;
-    }
-    if (p === '/api/auth/setup' && req.method === 'POST') {
-      const body = await readJson(req);
-      try {
-        const token = auth.setup(String(body.password || ''));
-        res.setHeader('set-cookie', sessionCookie(req, token));
-        sendJson(res, 200, { ok: true });
-      } catch (e) { sendJson(res, 400, { ok: false, message: e.message }); }
+      const username = sessionUser(req);
+      sendJson(res, 200, { setup: auth.isSetup(), authed: username !== null, username });
       return;
     }
     if (p === '/api/auth/login' && req.method === 'POST') {
       const body = await readJson(req);
       try {
-        const token = auth.login(String(body.password || ''));
+        const token = auth.login(String(body.username || ''));
         res.setHeader('set-cookie', sessionCookie(req, token));
-        sendJson(res, 200, { ok: true });
+        sendJson(res, 200, { ok: true, username: String(body.username || '').trim() });
       } catch (e) { sendJson(res, 401, { ok: false, message: e.message }); }
       return;
     }
@@ -308,8 +303,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p.startsWith('/api/')) {
-      if (!auth.isSetup()) { sendJson(res, 401, { success: false, message: '尚未设置访问密码', errorCode: 'unauthorized', retryable: false }); return; }
-      if (!isAuthed(req)) { sendJson(res, 401, { success: false, message: '未登录', errorCode: 'unauthorized', retryable: false }); return; }
+      if (!auth.isSetup()) { sendJson(res, 401, { success: false, message: '系统尚未开通任何用户', errorCode: 'unauthorized', retryable: false }); return; }
+      const username = sessionUser(req);
+      if (!username) { sendJson(res, 401, { success: false, message: '未登录', errorCode: 'unauthorized', retryable: false }); return; }
       if (p === '/api/fetch' && req.method === 'POST') {
         let body;
         try { body = await readJson(req); }
@@ -318,29 +314,29 @@ const server = http.createServer(async (req, res) => {
         const query = {};
         for (const [k, v] of Object.entries(body.query || {})) query[k] = String(v ?? '');
         // dispatchData 已返回序列化好的 JSON 字符串，直接落响应，避免二次 stringify。
-        const bodyStr = await dispatchData(routePath, query);
+        const bodyStr = await dispatchData(routePath, query, username);
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
         res.end(bodyStr);
         return;
       }
-      if (p === '/api/config' && req.method === 'GET') { sendJson(res, 200, store.load()); return; }
+      if (p === '/api/config' && req.method === 'GET') { sendJson(res, 200, storeFor(username).load()); return; }
       if (p === '/api/config/patch' && req.method === 'POST') {
         const body = await readJson(req);
-        try { sendJson(res, 200, store.patch(body.changes || {})); }
+        try { sendJson(res, 200, storeFor(username).patch(body.changes || {})); }
         catch (e) { sendJson(res, 400, { success: false, message: e.message }); }
         return;
       }
-      if (p === '/api/ai/status' && req.method === 'GET') { sendJson(res, 200, ai.status()); return; }
+      if (p === '/api/ai/status' && req.method === 'GET') { sendJson(res, 200, ai.status(username)); return; }
       if (p === '/api/ai/save' && req.method === 'POST') {
         const body = await readJson(req);
-        try { sendJson(res, 200, ai.save(body.options || {}, body.apiKey ?? null, !!body.clearKey)); }
+        try { sendJson(res, 200, ai.save(username, body.options || {}, body.apiKey ?? null, !!body.clearKey)); }
         catch (e) { sendJson(res, 400, { success: false, message: e.message }); }
         return;
       }
       if (p === '/api/events' && req.method === 'GET') {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
         res.write(': connected\n\n');
-        sseClients.add(res);
+        sseClients.set(res, username);
         const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch { /* ignore */ } }, 25000);
         req.on('close', () => { clearInterval(ping); sseClients.delete(res); });
         return;

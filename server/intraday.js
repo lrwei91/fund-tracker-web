@@ -56,9 +56,11 @@ function isTradingSession(date) {
 }
 
 class IntradayService {
-  constructor({ dataDir, store, internals, archive, getQuotes }) {
+  constructor({ dataDir, stores, internals, archive, getQuotes }) {
     this.dataDir = dataDir;
-    this.store = store;
+    // 多用户：监控集合 = 全体用户自选/持仓的并集 + 昨日梯队；
+    // 异动流按请求用户的自选/持仓过滤下发，梯队部分公共可见。
+    this.stores = stores;
     this.internals = internals;
     this.archive = archive;
     this.getQuotes = getQuotes;
@@ -99,10 +101,10 @@ class IntradayService {
 
   /* ---------- 监控集合 ---------- */
 
-  _watchCodes() {
-    if (!this.store || typeof this.store.dataValue !== 'function') return [];
+  _watchCodesFor(store) {
+    if (!store || typeof store.dataValue !== 'function') return [];
     let codes = null;
-    const tabs = this.store.dataValue('fund_tracker_watchlist_tabs');
+    const tabs = store.dataValue('fund_tracker_watchlist_tabs');
     if (Array.isArray(tabs)) {
       const def = tabs.find((t) => t && t.id === 'default');
       if (def && Array.isArray(def.codes)) codes = def.codes;
@@ -113,11 +115,27 @@ class IntradayService {
       }
     }
     if (!codes) {
-      const wl = this.store.dataValue('fund_tracker_watchlist');
+      const wl = store.dataValue('fund_tracker_watchlist');
       if (Array.isArray(wl)) codes = wl;
     }
     const seen = new Set();
     return (codes || []).filter((c) => validCode(c) && !seen.has(c) && seen.add(c));
+  }
+
+  _watchCodes() {
+    const seen = new Set();
+    const all = [];
+    for (const { store } of this.stores.all()) {
+      for (const c of this._watchCodesFor(store)) {
+        if (!seen.has(c)) { seen.add(c); all.push(c); }
+      }
+    }
+    return all;
+  }
+
+  _userCodes(username) {
+    if (!username) return [];
+    try { return this._watchCodesFor(this.stores.get(username)); } catch { return []; }
   }
 
   _ladderCodes() {
@@ -229,14 +247,17 @@ class IntradayService {
     return this.events;
   }
 
-  anomalies(date) {
+  anomalies(date, username) {
     const target = /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? date : todayCst();
-    const events = target === todayCst()
+    let events = target === todayCst()
       ? this._loadEvents(target)
       : (this._readJson(this._eventsFile(target), { events: [] }).events || []);
+    // 按用户过滤：只下发该用户自选/持仓与公共梯队的异动
+    const visible = new Set([...this._userCodes(username), ...this._ladderCodes()]);
+    events = events.filter((e) => visible.has(e.code));
     return {
       date: target,
-      monitorCount: target === todayCst() ? this._monitorCodes().length : null,
+      monitorCount: target === todayCst() ? visible.size : null,
       events: events.slice(0, 100),
     };
   }
@@ -372,9 +393,9 @@ class IntradayService {
 
   /* ---------- 路由 ---------- */
 
-  async handle(query) {
+  async handle(query, username) {
     const action = query && typeof query.action === 'string' ? query.action : 'ladder';
-    if (action === 'anomalies') return { success: true, data: this.anomalies(query.date) };
+    if (action === 'anomalies') return { success: true, data: this.anomalies(query.date, username) };
     if (action === 'snapshots') return { success: true, data: this.snapshots(query.date) };
     const board = await this.ladderBoard();
     if (board.ok === false) return { success: false, error: board.error, data: board };

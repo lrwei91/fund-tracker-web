@@ -128,4 +128,33 @@ class ConfigStore {
     return v;
   }
 }
-module.exports = { ConfigStore, KEYS, JSON_KEYS, NATIVE_OWNED };
+// 多用户配置管理：每位用户一份 config，落盘 DATA_DIR/users/<用户名>/config.json。
+// 存量迁移：旧的单用户 DATA_DIR/config.json 在首次启动时复制为默认用户（lrwei91）的配置（原文件保留作备份）。
+class UserStores {
+  constructor(dataDir, usernamesProvider) {
+    this.dataDir = dataDir;
+    this.usernamesProvider = usernamesProvider || (() => []);
+    this.cache = new Map();
+    this._migrateLegacy();
+  }
+  _userFile(username) { return path.join(this.dataDir, 'users', username, 'config.json'); }
+  _migrateLegacy() {
+    const legacy = path.join(this.dataDir, 'config.json');
+    const target = this._userFile('lrwei91');
+    try {
+      if (fs.existsSync(legacy) && !fs.existsSync(target)) {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.copyFileSync(legacy, target);
+        console.log('[stock-web] 已把存量配置迁移为用户 lrwei91 的配置（原 config.json 保留）');
+      }
+    } catch (e) { console.error('[stock-web] 存量配置迁移失败：', e.message); }
+  }
+  get(username) {
+    if (!username) throw new Error('缺少用户名');
+    if (!this.cache.has(username)) this.cache.set(username, new ConfigStore(this._userFile(username)));
+    return this.cache.get(username);
+  }
+  usernames() { return this.usernamesProvider(); }
+  all() { return this.usernames().map((u) => ({ username: u, store: this.get(u) })); }
+}
+module.exports = { ConfigStore, UserStores, KEYS, JSON_KEYS, NATIVE_OWNED };

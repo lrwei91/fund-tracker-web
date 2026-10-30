@@ -87,19 +87,20 @@ function freshQuote(quote, nowMs) {
 }
 
 class PriceAlerts {
-  constructor({ store, getQuotes, emit }) {
-    this.store = store;
+  constructor({ stores, getQuotes, emit }) {
+    // 多用户：规则按用户存放；emit(username, event, payload) 只推给该用户的连接。
+    this.stores = stores;
     this.getQuotes = getQuotes; // async (codes[]) => data map | null
     this.emit = emit || (() => {});
     this.timer = null;
   }
-  doc() {
-    const v = this.store.dataValue(KEY);
+  doc(store) {
+    const v = store.dataValue(KEY);
     if (v == null) return emptyDoc();
     if (typeof v !== 'object' || !Array.isArray(v.rules) || !Array.isArray(v.history)) throw new Error('提醒数据格式无效，原数据已保留');
     return { rules: v.rules, history: v.history, lastCheckedAt: v.lastCheckedAt ?? null, status: v.status || '' };
   }
-  _save(doc) { this.store.updateData(KEY, () => doc); }
+  _save(store, doc) { store.updateData(KEY, () => doc); }
   _listView(doc) {
     const nowMs = Date.now();
     const hasActive = doc.rules.some((r) => { try { validateRule(r); return ruleActive(r, nowMs); } catch { return false; } });
@@ -109,13 +110,14 @@ class PriceAlerts {
     else view.status = doc.status || 'monitoring';
     return view;
   }
-  handle(query) {
+  handle(query, username) {
+    const store = this.stores.get(username);
     const op = String(query.op || 'list');
     try {
       if (op === 'list') {
-        return { success: true, data: this._listView(this.doc()), meta: { stale: false, degraded: false } };
+        return { success: true, data: this._listView(this.doc(store)), meta: { stale: false, degraded: false } };
       }
-      const doc = this.doc();
+      const doc = this.doc(store);
       if (op === 'save') {
         const raw = String(query.rule || '');
         if (raw.length >= 8000) return { success: false, message: '提醒规则过大', errorCode: 'invalid_input', retryable: false };
@@ -134,7 +136,7 @@ class PriceAlerts {
           if (!rule.id) rule.id = crypto.randomUUID();
           doc.rules.push(rule);
         }
-        this._save(doc);
+        this._save(store, doc);
         return { success: true, data: this._listView(doc), meta: { stale: false, degraded: false } };
       }
       if (op === 'toggle' || op === 'delete') {
@@ -143,7 +145,7 @@ class PriceAlerts {
         if (idx < 0) return { success: false, message: '提醒规则不存在', errorCode: 'invalid_input', retryable: false };
         if (op === 'delete') doc.rules.splice(idx, 1);
         else { doc.rules[idx].enabled = !doc.rules[idx].enabled; doc.rules[idx].lastMatched = null; doc.rules[idx].lastValues = []; }
-        this._save(doc);
+        this._save(store, doc);
         return { success: true, data: this._listView(doc), meta: { stale: false, degraded: false } };
       }
       return { success: false, message: '未知提醒操作', errorCode: 'invalid_input', retryable: false };
@@ -160,8 +162,13 @@ class PriceAlerts {
     this.timer.unref?.();
   }
   async _tick() {
+    for (const { username, store } of this.stores.all()) {
+      try { await this._tickUser(username, store); } catch { /* 单个用户失败不影响其他用户 */ }
+    }
+  }
+  async _tickUser(username, store) {
     let snapshot;
-    try { snapshot = this.doc(); } catch { return; }
+    try { snapshot = this.doc(store); } catch { return; }
     const nowMs = Date.now();
     const candidates = [];
     for (const rule of snapshot.rules) {
@@ -179,7 +186,7 @@ class PriceAlerts {
     // 保存/启停/删除先落盘时，不会被本 tick 拿着的旧快照整体覆盖（lost-update）。
     let saved = false;
     try {
-      this.store.updateData(KEY, (old) => {
+      store.updateData(KEY, (old) => {
         const doc = (old && typeof old === 'object' && Array.isArray(old.rules) && Array.isArray(old.history))
           ? { rules: old.rules, history: old.history, lastCheckedAt: old.lastCheckedAt ?? null, status: old.status || '' }
           : emptyDoc();
@@ -225,10 +232,10 @@ class PriceAlerts {
       saved = false;
     }
     if (!saved) {
-      if (hits.length) this.emit('price-alert-error', { message: '提醒状态无法保存，未发送告警' });
+      if (hits.length) this.emit(username, 'price-alert-error', { message: '提醒状态无法保存，未发送告警' });
       return;
     }
-    for (const h of hits) this.emit('price-alert-hit', h);
+    for (const h of hits) this.emit(username, 'price-alert-hit', h);
   }
 }
 

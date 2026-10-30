@@ -36,8 +36,11 @@ function validateSettings(raw) {
 }
 
 class AiService {
-  constructor({ store, dataDir, gateway, getSnapshot }) {
-    this.store = store;
+  constructor({ getStore, systemUsername, dataDir, gateway, getSnapshot }) {
+    // 多用户：设置与研究历史按用户存放在各自的 config 里；公共后台任务
+    // （复盘、产业链提炼）未指定用户时用系统用户（lrwei91）的 AI 设置。
+    this.getStore = getStore;
+    this.systemUsername = systemUsername || 'lrwei91';
     this.gateway = gateway;
     this.getSnapshot = getSnapshot; // async (code) => envelope {success,data,meta}
     this.secretFile = path.join(dataDir, 'ai-secret.json');
@@ -58,18 +61,20 @@ class AiService {
     fs.renameSync(tmp, this.secretFile);
     try { fs.chmodSync(this.secretFile, 0o600); } catch { /* ignore */ }
   }
-  settings() {
-    const s = this.store.dataValue(SETTINGS_KEY);
+  storeFor(username) { return this.getStore(username || this.systemUsername); }
+  systemStore() { return this.getStore(this.systemUsername); }
+  settings(store) {
+    const s = (store || this.systemStore()).dataValue(SETTINGS_KEY);
     return { baseUrl: String(s?.baseUrl || ''), model: String(s?.model || '') };
   }
-  status() {
-    const settings = this.settings();
+  status(username) {
+    const settings = this.settings(this.storeFor(username));
     const key = settings.baseUrl ? this.secrets[md5hex(settings.baseUrl)] : null;
     return { settings, configured: !!key };
   }
-  save(options, apiKey, clearKey) {
+  save(username, options, apiKey, clearKey) {
     const settings = validateSettings(options || {});
-    this.store.updateData(SETTINGS_KEY, () => settings);
+    this.storeFor(username).updateData(SETTINGS_KEY, () => settings);
     const account = md5hex(settings.baseUrl);
     if (clearKey) delete this.secrets[account];
     else if (apiKey != null) {
@@ -79,7 +84,7 @@ class AiService {
     }
     this._persistSecrets();
     this.cache.clear();
-    return this.status();
+    return this.status(username);
   }
   _secret(baseUrl) { return this.secrets[md5hex(baseUrl)] || null; }
 
@@ -103,8 +108,8 @@ class AiService {
     else this.modelBusy = false;
   }
 
-  async modelRequest(prompt, facts, maxTokens) {
-    const options = validateSettings(this.settings());
+  async modelRequest(prompt, facts, maxTokens, store) {
+    const options = validateSettings(this.settings(store));
     const secret = this._secret(options.baseUrl);
     if (!secret) throw new Error('AI 服务未配置');
     const body = JSON.stringify({
@@ -176,16 +181,17 @@ class AiService {
     return { rating, score, summary, bull, bear, watchConditions, invalidConditions };
   }
 
-  async handle(query) {
+  async handle(query, username) {
+    const store = this.storeFor(username);
     const code = String(query.code || '');
     const mode = String(query.mode || '');
     if (mode === 'history') {
-      const history = this.store.dataValue(HISTORY_KEY);
+      const history = store.dataValue(HISTORY_KEY);
       const rows = Array.isArray(history) ? history.filter((r) => r && r.code === code).slice(0, 10) : [];
       return { success: true, data: { items: rows }, meta: { stale: false, degraded: false } };
     }
     let options;
-    try { options = validateSettings(this.settings()); }
+    try { options = validateSettings(this.settings(store)); }
     catch { return { success: false, message: 'AI 服务未配置', errorCode: 'invalid_input', retryable: false }; }
     if (!this._secret(options.baseUrl)) return { success: false, message: 'AI 服务未配置', errorCode: 'invalid_input', retryable: false };
     const release = await this.acquireManual();
@@ -206,7 +212,7 @@ class AiService {
         return { success: true, data: cloned, meta: snapshot.meta };
       }
       let raw, model;
-      try { ({ raw, model } = await this.modelRequest(SINGLE_PROMPT, facts, 4000)); }
+      try { ({ raw, model } = await this.modelRequest(SINGLE_PROMPT, facts, 4000, store)); }
       catch (e) { return { success: false, message: 'AI 研究请求失败，未采用结论', errorCode: 'upstream_error', retryable: true }; }
       let report;
       try { report = this.parseReport(raw, data); }
@@ -217,7 +223,7 @@ class AiService {
         quant: data.quant, report, fromCache: false,
       };
       try {
-        this.store.updateData(HISTORY_KEY, (old) => {
+        store.updateData(HISTORY_KEY, (old) => {
           const rows = Array.isArray(old) ? old.slice() : [];
           rows.unshift(result);
           return rows.slice(0, 60);

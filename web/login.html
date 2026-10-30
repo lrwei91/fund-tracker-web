@@ -45,60 +45,39 @@
   <h1>恭喜发财</h1>
   <p class="sub" id="subtitle">正在检查登录状态…</p>
   <form id="form" class="hidden">
-    <label for="password" id="password-label">访问密码</label>
-    <input type="password" id="password" required minlength="6" maxlength="128" autocomplete="current-password">
-    <div id="confirm-wrap" class="hidden">
-      <label for="confirm">再输入一次</label>
-      <input type="password" id="confirm" maxlength="128" autocomplete="new-password">
-    </div>
-    <button type="submit" id="submit">登录</button>
+    <label for="username">用户名</label>
+    <input type="text" id="username" required maxlength="32" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="输入用户名进入你的盯盘台">
+    <button type="submit" id="submit">进入</button>
     <div class="error" id="error" role="alert"></div>
   </form>
 </div>
 <script>
 (function () {
-  var mode = 'login';
   var form = document.getElementById('form');
   var subtitle = document.getElementById('subtitle');
-  var password = document.getElementById('password');
-  var confirmWrap = document.getElementById('confirm-wrap');
-  var confirmInput = document.getElementById('confirm');
+  var username = document.getElementById('username');
   var submit = document.getElementById('submit');
   var error = document.getElementById('error');
 
   fetch('/api/auth/status').then(function (r) { return r.json(); }).then(function (s) {
     if (s.authed) { location.replace('/index.html'); return; }
     form.classList.remove('hidden');
-    if (!s.setup) {
-      mode = 'setup';
-      subtitle.textContent = '首次使用，请设置访问密码（之后登录用）';
-      document.getElementById('password-label').textContent = '设置访问密码（至少 6 位）';
-      password.setAttribute('autocomplete', 'new-password');
-      confirmWrap.classList.remove('hidden');
-      confirmInput.required = true;
-      submit.textContent = '设置密码并进入';
-    } else {
-      subtitle.textContent = '输入访问密码进入盯盘台';
-    }
-    password.focus();
+    subtitle.textContent = '输入用户名，进入属于你的盯盘台';
+    username.focus();
   }).catch(function () { subtitle.textContent = '服务暂时不可用，请稍后重试'; });
 
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
     error.textContent = '';
-    if (mode === 'setup' && password.value !== confirmInput.value) {
-      error.textContent = '两次输入的密码不一致';
-      return;
-    }
     submit.disabled = true;
-    fetch(mode === 'setup' ? '/api/auth/setup' : '/api/auth/login', {
+    fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password: password.value }),
+      body: JSON.stringify({ username: username.value.trim() }),
     }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
       .then(function (result) {
         if (result.ok) { location.replace('/index.html'); return; }
-        error.textContent = result.data.message || '操作失败';
+        error.textContent = result.data.message || '进入失败';
         submit.disabled = false;
       })
       .catch(function () { error.textContent = '网络错误，请重试'; submit.disabled = false; });

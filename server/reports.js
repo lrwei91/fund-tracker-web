@@ -20,16 +20,18 @@ function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 function defaultCenter() { return { settings: { premarket: false, afterClose: false, weekly: false }, runs: [], slots: {} }; }
 
 class ReportCenter {
-  constructor({ store, ai, getSnapshot, getQuotes, emit }) {
-    this.store = store;
+  constructor({ stores, ai, getSnapshot, getQuotes, emit }) {
+    // 多用户：报告中心按用户存放；emit(username, event, payload) 只推给该用户。
+    this.stores = stores;
     this.ai = ai;
     this.getSnapshot = getSnapshot;
     this.getQuotes = getQuotes;
     this.emit = emit || (() => {});
     this.timer = null;
   }
-  _load() {
-    const v = this.store.dataValue(CENTER_KEY);
+  _store(username) { return this.stores.get(username); }
+  _load(username) {
+    const v = this._store(username).dataValue(CENTER_KEY);
     if (v == null) return defaultCenter();
     if (typeof v !== 'object' || Array.isArray(v)) throw new Error('报告配置格式异常，未覆盖原数据');
     const c = clone(v);
@@ -38,8 +40,8 @@ class ReportCenter {
     if (!c.slots || typeof c.slots !== 'object') c.slots = {};
     return c;
   }
-  _change(mutator) {
-    return this.store.updateData(CENTER_KEY, (old) => {
+  _change(username, mutator) {
+    return this._store(username).updateData(CENTER_KEY, (old) => {
       const center = old == null ? defaultCenter() : (() => { const c = clone(old); c.settings = { premarket: !!c.settings?.premarket, afterClose: !!c.settings?.afterClose, weekly: !!c.settings?.weekly }; if (!Array.isArray(c.runs)) c.runs = []; if (!c.slots || typeof c.slots !== 'object') c.slots = {}; return c; })();
       mutator(center);
       center.runs = center.runs.slice(0, 60);
@@ -47,15 +49,15 @@ class ReportCenter {
     });
   }
   _findRun(center, id) { return center.runs.find((r) => r.id === id); }
-  _transition(id, patch) {
+  _transition(username, id, patch) {
     let updated = null;
-    this._change((center) => {
+    this._change(username, (center) => {
       const run = this._findRun(center, id);
       if (!run) return;
       Object.assign(run, patch);
       updated = clone(run);
     });
-    if (updated) this.emit('research-report-state', { id });
+    if (updated) this.emit(username, 'research-report-state', { id });
     return updated;
   }
   _inWindow(slot, nowMinutes) {
@@ -66,13 +68,13 @@ class ReportCenter {
     if (slot === 'premarket') return previousTradingDay(day);
     return day;
   }
-  _reserve({ slot, automatic, today }) {
+  _reserve(username, { slot, automatic, today }) {
     const now = shanghaiNow();
     if (isTradingDay(today) !== true) throw new Error('当前非已确认交易日，未执行研究');
     if (slot === 'premarket' && now.minutes >= 570) throw new Error('已开盘，请查看历史或生成盘后报告');
     if (slot === 'afterClose' && now.minutes < 900) throw new Error('盘后报告需等待当日收盘');
     let created = null;
-    this._change((center) => {
+    this._change(username, (center) => {
       if (center.runs.some((r) => ACTIVE.includes(r.status))) throw new Error('已有报告正在执行');
       const slotsToday = center.slots[today] || [];
       if (slotsToday.includes(slot)) throw new Error('当日该报告已有执行记录');
@@ -95,17 +97,17 @@ class ReportCenter {
     });
     return created;
   }
-  handle(query) {
+  handle(query, username) {
     const op = String(query.op || 'list');
     try {
       if (op === 'list' || op === 'read' || op === 'cancel' || op === 'settings') {
         if (op === 'settings') {
           let settings;
           try { settings = JSON.parse(String(query.settings || '')); } catch { return this._fail('报告设置格式无效'); }
-          const aiSettings = this.store.dataValue(AI_SETTINGS_KEY);
+          const aiSettings = this._store(username).dataValue(AI_SETTINGS_KEY);
           const enabling = settings.premarket || settings.afterClose || settings.weekly;
           if (enabling && !String(aiSettings?.model || '').trim()) return this._fail('请先配置 AI 服务');
-          this._change((center) => {
+          this._change(username, (center) => {
             const before = { ...center.settings };
             center.settings = { premarket: !!settings.premarket, afterClose: !!settings.afterClose, weekly: !!settings.weekly };
             for (const slot of ['premarket', 'afterClose', 'weekly']) {
@@ -121,40 +123,40 @@ class ReportCenter {
         }
         if (op === 'read') {
           const id = String(query.id || '');
-          this._change((center) => { const run = this._findRun(center, id); if (run) run.read = true; });
+          this._change(username, (center) => { const run = this._findRun(center, id); if (run) run.read = true; });
         }
         if (op === 'cancel') {
           const id = String(query.id || '');
           let error = null;
-          this._change((center) => {
+          this._change(username, (center) => {
             const run = this._findRun(center, id);
             if (!run || !ACTIVE.includes(run.status)) { error = '任务已结束，无法取消'; return; }
             if (run.status === 'analyzing') { error = '模型请求已发送或任务已结束，无法取消'; return; }
             run.status = 'cancelled'; run.message = '已取消，未调用模型'; run.finishedAt = new Date().toISOString();
           });
           if (error) return this._fail(error);
-          this.emit('research-report-state', { id });
+          this.emit(username, 'research-report-state', { id });
         }
-        return this._listResult();
+        return this._listResult(username);
       }
       if (op === 'run') {
         let slot;
         try { slot = JSON.parse(String(query.slot || '')); } catch { return this._fail('报告类型无效'); }
         if (!['premarket', 'afterClose', 'weekly'].includes(slot)) return this._fail('报告类型无效');
-        const run = this._reserve({ slot, automatic: false, today: todayStr() });
-        this._spawn(run.id);
+        const run = this._reserve(username, { slot, automatic: false, today: todayStr() });
+        this._spawn(username, run.id);
         return { success: true, data: { id: run.id }, meta: { stale: false, degraded: false } };
       }
       if (op === 'retry') {
-        const center = this._load();
+        const center = this._load(username);
         const old = this._findRun(center, String(query.id || ''));
         if (!old) return this._fail('报告不存在');
-        const run = this._reserve({ slot: old.slot, automatic: false, today: todayStr() });
-        this._spawn(run.id);
+        const run = this._reserve(username, { slot: old.slot, automatic: false, today: todayStr() });
+        this._spawn(username, run.id);
         return { success: true, data: { id: run.id }, meta: { stale: false, degraded: false } };
       }
       if (op === 'get') {
-        const center = this._load();
+        const center = this._load(username);
         const run = this._findRun(center, String(query.id || ''));
         if (!run) return this._fail('报告不存在');
         return { success: true, data: clone(run), meta: { stale: false, degraded: false } };
@@ -165,8 +167,8 @@ class ReportCenter {
     }
   }
   _fail(message) { return { success: false, message, errorCode: 'invalid_input', retryable: false }; }
-  _listResult() {
-    const center = this._load();
+  _listResult(username) {
+    const center = this._load(username);
     const items = center.runs.map((r) => { const c = clone(r); delete c.facts; delete c.report; return c; });
     const today = todayStr();
     return {
@@ -182,24 +184,34 @@ class ReportCenter {
 
   // ---------- 调度 ----------
   start() {
-    try {
-      this._change((center) => {
-        for (const run of center.runs) {
-          if (ACTIVE.includes(run.status)) {
-            run.status = 'interrupted';
-            run.message = '应用退出或重启，任务已中断；未自动再次调用模型';
-            run.finishedAt = new Date().toISOString();
+    let recovered = false;
+    for (const { username } of this.stores.all()) {
+      try {
+        this._change(username, (center) => {
+          for (const run of center.runs) {
+            if (ACTIVE.includes(run.status)) {
+              run.status = 'interrupted';
+              run.message = '应用退出或重启，任务已中断；未自动再次调用模型';
+              run.finishedAt = new Date().toISOString();
+            }
           }
-        }
-      });
-    } catch { return; /* 恢复失败则不启动调度 */ }
+        });
+        recovered = true;
+      } catch { /* 单个用户恢复失败不影响其他用户 */ }
+    }
+    if (!recovered && this.stores.usernames().length) return;
     this.timer = setInterval(() => { this._tick().catch(() => {}); }, 15000);
     this.timer.unref?.();
   }
   async _tick() {
     const today = todayStr();
     if (isTradingDay(today) !== true) return;
-    const center = this._load();
+    for (const { username } of this.stores.all()) {
+      try { await this._tickUser(username, today); } catch { /* 单个用户失败不影响其他用户 */ }
+    }
+  }
+  async _tickUser(username, today) {
+    const center = this._load(username);
     const now = shanghaiNow();
     const jobs = [['premarket', center.settings.premarket], ['afterClose', center.settings.afterClose]];
     if (weekdayMon1(today) === 5) jobs.push(['weekly', center.settings.weekly]);
@@ -209,10 +221,10 @@ class ReportCenter {
       if (now.minutes < BOUNDS[slot][0]) continue;
       if ((center.slots[today] || []).includes(slot)) continue;
       if (this._inWindow(slot, now.minutes)) {
-        try { const run = this._reserve({ slot, automatic: true, today }); this._spawn(run.id); }
+        try { const run = this._reserve(username, { slot, automatic: true, today }); this._spawn(username, run.id); }
         catch { /* tick 忽略预留错误 */ }
       } else if (now.minutes >= end) {
-        this._change((c2) => {
+        this._change(username, (c2) => {
           if ((c2.slots[today] || []).includes(slot)) return;
           c2.slots[today] = [...(c2.slots[today] || []), slot];
           c2.runs.unshift({
@@ -226,17 +238,17 @@ class ReportCenter {
   }
 
   // ---------- 执行 ----------
-  _spawn(id) { setImmediate(() => { this._execute(id).catch(() => {}); }); }
-  _runState(id) { const c = this._load(); return this._findRun(c, id) || null; }
-  _holdingCodes() {
-    const tabs = this.store.dataValue('fund_tracker_watchlist_tabs');
+  _spawn(username, id) { setImmediate(() => { this._execute(username, id).catch(() => {}); }); }
+  _runState(username, id) { const c = this._load(username); return this._findRun(c, id) || null; }
+  _holdingCodes(username) {
+    const tabs = this._store(username).dataValue('fund_tracker_watchlist_tabs');
     let codes = null;
     if (Array.isArray(tabs)) {
       const def = tabs.find((t) => t && t.id === 'default');
       if (def && Array.isArray(def.codes)) codes = def.codes;
     }
     if (!codes) {
-      const wl = this.store.dataValue('fund_tracker_watchlist');
+      const wl = this._store(username).dataValue('fund_tracker_watchlist');
       if (Array.isArray(wl)) codes = wl;
     }
     const seen = new Set();
@@ -252,8 +264,8 @@ class ReportCenter {
     const ts = Date.UTC(+raw.slice(0, 4), +raw.slice(4, 6) - 1, +raw.slice(6, 8), +raw.slice(8, 10), +raw.slice(10, 12), +raw.slice(12, 14)) - 8 * 3600 * 1000;
     return ts <= Date.now();
   }
-  async _portfolio(expectedDate) {
-    const codes = this._holdingCodes();
+  async _portfolio(username, expectedDate) {
+    const codes = this._holdingCodes(username);
     if (!codes.length) throw new Error('没有持仓，未调用模型');
     const quotes = {};
     for (let i = 0; i < codes.length; i += 50) {
@@ -261,7 +273,7 @@ class ReportCenter {
       const part = await this.getQuotes(chunk);
       if (part) Object.assign(quotes, part);
     }
-    const costMap = this.store.dataValue('fund_tracker_watchlist_cost') || {};
+    const costMap = this._store(username).dataValue('fund_tracker_watchlist_cost') || {};
     const rows = codes.map((code) => {
       const entry = costMap[code];
       const shares = entry && typeof entry === 'object' ? (typeof entry.shares === 'number' ? entry.shares : null) : null;
@@ -352,11 +364,11 @@ class ReportCenter {
     };
     return { summary: obj.summary, stocks: [], portfolioRisks: cleanList(obj.portfolioRisks), watchConditions: cleanList(obj.watchConditions), limitations: cleanList(obj.limitations) };
   }
-  async _acquireForRun(run) {
+  async _acquireForRun(username, run) {
     if (!run.automatic) return this.ai.acquireManual();
     // 自动任务：调模型前才抢槽，200ms 轮询，同时查取消与窗口
     for (;;) {
-      const state = this._runState(run.id);
+      const state = this._runState(username, run.id);
       if (!state || !ACTIVE.includes(state.status)) throw new Error('任务已取消');
       const now = shanghaiNow();
       if (!this._inWindow(run.slot, now.minutes)) throw new Error('已错过自动报告执行窗口，未调用模型');
@@ -365,21 +377,21 @@ class ReportCenter {
       await new Promise((r) => setTimeout(r, 200));
     }
   }
-  async _execute(id) {
-    const run = this._runState(id);
+  async _execute(username, id) {
+    const run = this._runState(username, id);
     if (!run || !ACTIVE.includes(run.status)) return;
     let release = null;
     try {
       if (!run.automatic) release = await this.ai.acquireManual();
-      const current = this._runState(id);
+      const current = this._runState(username, id);
       if (!current || !ACTIVE.includes(current.status)) { release?.(); return; }
-      this._transition(id, { status: 'collecting', message: '正在收集持仓与公开资料' });
+      this._transition(username, id, { status: 'collecting', message: '正在收集持仓与公开资料' });
       const expectedDate = this._expectedDate(run.slot, run.tradeDate);
       if (!expectedDate) throw new Error('无法确定报告行情日期');
-      const { rows, portfolio } = await this._portfolio(expectedDate);
+      const { rows, portfolio } = await this._portfolio(username, expectedDate);
       let facts; let report;
       if (run.slot === 'weekly') {
-        const center = this._load();
+        const center = this._load(username);
         const since = addDays(run.tradeDate, -7);
         const weekRuns = center.runs
           .filter((r) => r.id !== id && r.tradeDate >= since && r.tradeDate <= run.tradeDate && (r.status === 'completed' || r.status === 'partial') && r.report)
@@ -389,18 +401,18 @@ class ReportCenter {
           }));
         facts = { tradeDate: run.tradeDate, kind: 'weekly', expectedQuoteDate: expectedDate, portfolio, weekRuns, snapshots: [], excluded: [] };
         if (Buffer.byteLength(JSON.stringify(facts), 'utf8') > 180000) throw new Error('报告资料超出限制，未调用模型');
-        this._transition(id, { facts });
-        this._transition(id, { status: 'analyzing', message: '模型正在生成报告；不会自动重试', modelSent: true });
-        if (run.automatic && !release) release = await this._acquireForRun(run);
-        const { raw, model } = await this.ai.modelRequest(WEEKLY_PROMPT, facts, 6500);
+        this._transition(username, id, { facts });
+        this._transition(username, id, { status: 'analyzing', message: '模型正在生成报告；不会自动重试', modelSent: true });
+        if (run.automatic && !release) release = await this._acquireForRun(username, run);
+        const { raw, model } = await this.ai.modelRequest(WEEKLY_PROMPT, facts, 6500, this._store(username));
         report = this._parseWeeklyReport(raw);
         const partial = weekRuns.length === 0;
-        this._transition(id, {
+        this._transition(username, id, {
           status: partial ? 'partial' : 'completed',
           message: partial ? '报告已保存，本周无日报可汇总' : '报告已保存',
           finishedAt: new Date().toISOString(), report, model,
         });
-        this.emit('research-report-notice', { id, slot: run.slot });
+        this.emit(username, 'research-report-notice', { id, slot: run.slot });
         return;
       }
       // 选股：市值降序（同市值代码升序），公司股票且市值有效的前 5 只
@@ -418,7 +430,7 @@ class ReportCenter {
       }
       const snapshots = [];
       for (const row of selected) {
-        const state = this._runState(id);
+        const state = this._runState(username, id);
         if (!state || !ACTIVE.includes(state.status)) { release?.(); return; }
         let snapEnv = null;
         try { snapEnv = await this.getSnapshot(row.code); } catch { snapEnv = null; }
@@ -431,29 +443,29 @@ class ReportCenter {
       facts = { tradeDate: run.tradeDate, kind: run.slot, expectedQuoteDate: expectedDate, portfolio, snapshots, excluded };
       if (!snapshots.length) throw new Error('没有符合时点与资料要求的股票快照，未调用模型');
       if (Buffer.byteLength(JSON.stringify(facts), 'utf8') > 180000) throw new Error('报告资料超出限制，未调用模型');
-      this._transition(id, { facts });
+      this._transition(username, id, { facts });
       // 自动任务在进 analyzing 前须仍在窗口内
       if (run.automatic) {
         const now = shanghaiNow();
         if (!this._inWindow(run.slot, now.minutes)) throw new Error('已错过自动报告执行窗口，未调用模型');
       }
-      this._transition(id, { status: 'analyzing', message: '模型正在生成报告；不会自动重试', modelSent: true });
-      if (run.automatic && !release) release = await this._acquireForRun(run);
-      const { raw, model } = await this.ai.modelRequest(REPORT_PROMPT, facts, 6500);
+      this._transition(username, id, { status: 'analyzing', message: '模型正在生成报告；不会自动重试', modelSent: true });
+      if (run.automatic && !release) release = await this._acquireForRun(username, run);
+      const { raw, model } = await this.ai.modelRequest(REPORT_PROMPT, facts, 6500, this._store(username));
       report = this._parsePortfolioReport(raw, snapshots);
       const partial = excluded.length > 0 || snapshots.some((s) => (s.quant?.coverage ?? 100) < 100);
-      this._transition(id, {
+      this._transition(username, id, {
         status: partial ? 'partial' : 'completed',
         message: partial ? '报告已保存，部分标的或来源未覆盖' : '报告已保存',
         finishedAt: new Date().toISOString(), report, model,
       });
-      this.emit('research-report-notice', { id, slot: run.slot });
+      this.emit(username, 'research-report-notice', { id, slot: run.slot });
     } catch (e) {
-      const state = this._runState(id);
+      const state = this._runState(username, id);
       if (state && ACTIVE.includes(state.status)) {
         const missed = String(e.message || '').includes('错过');
         try {
-          this._transition(id, { status: missed ? 'missed' : 'failed', message: e.message || '报告生成失败', finishedAt: new Date().toISOString() });
+          this._transition(username, id, { status: missed ? 'missed' : 'failed', message: e.message || '报告生成失败', finishedAt: new Date().toISOString() });
         } catch { /* ignore */ }
       }
     } finally {

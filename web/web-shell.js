@@ -155,6 +155,29 @@
         onStockAlert: function (callback) { return subscribeLocal('stock-alert', callback); },
     };
 
+    // 当前用户标识 + 切换用户（退出登录）：挂在顶栏右侧
+    function initUserChip() {
+        var host = document.querySelector('.header-right');
+        if (!host || document.getElementById('user-chip')) return;
+        fetch('/api/auth/status').then(function (res) { return res.json(); }).then(function (status) {
+            if (!status || !status.authed || !status.username) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'user-chip';
+            btn.className = 'header-btn user-chip';
+            btn.textContent = status.username;
+            btn.title = '当前用户 ' + status.username + '，点击退出并切换用户';
+            btn.addEventListener('click', function () {
+                btn.disabled = true;
+                fetch('/api/auth/logout', { method: 'POST' }).then(function () { location.href = '/'; })
+                    .catch(function () { location.href = '/'; });
+            });
+            host.insertBefore(btn, host.firstChild);
+        }).catch(function () { /* ignore */ });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initUserChip);
+    else initUserChip();
+
     // 提醒权限：首次交互后申请一次浏览器通知权限
     document.addEventListener('pointerdown', function askOnce() {
         document.removeEventListener('pointerdown', askOnce);
