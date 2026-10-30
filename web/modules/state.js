@@ -81,8 +81,8 @@
     var STATUS_TOAST_TTL_MS = 2500;
 
     // ---------- 主 tab 路由 ----------
-    var VALID_TABS = ['dashboard', 'market', 'research', 'alerts', 'news'];
-    var TAB_TITLES = { dashboard: '我的盯盘', market: '市场总览', research: '研究工作台', alerts: '提醒中心', news: '财经资讯' };
+    var VALID_TABS = ['dashboard', 'market', 'review', 'research', 'alerts', 'news'];
+    var TAB_TITLES = { dashboard: '我的盯盘', market: '市场总览', review: '收盘复盘', research: '研究工作台', alerts: '提醒中心', news: '财经资讯' };
 
     // ---------- 新闻翻页 ----------
     var NEWS_PAGE_SIZE = { jin10: 20, eastmoney: 30, cls: 20 };

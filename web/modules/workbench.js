@@ -95,6 +95,7 @@
         if (window.AppRefreshCoordinator && window.AppRefreshCoordinator.refreshTab) window.AppRefreshCoordinator.refreshTab(tab);
         if (tab === 'research' && window.AppReports) window.AppReports.refresh();
         if (tab === 'alerts' && window.AppPriceAlerts) window.AppPriceAlerts.refresh();
+        if (tab === 'review' && window.AppReview) window.AppReview.refresh();
         renderSummary();
     }
     function init() {

@@ -61,6 +61,9 @@ class MarketArchive {
     fs.renameSync(tmp, file);
   }
 
+  // 供复盘层读取存档（只读）。
+  getDay(date) { return this._readDay(date); }
+
   listDates() {
     let names = [];
     try { names = fs.readdirSync(this.dir); } catch { return []; }

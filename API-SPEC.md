@@ -69,6 +69,8 @@ Web 复刻对应关系（建议）：`fetch_data` → 一个 `POST /api/fetch` �
 
 `/industry-news`（本地服务，server/industry-news.js；2026-10-30 融合计划第 1 期新增）：源库 `server/industry-sources.json` 移植自 investment-news（MIT；106 源 / 12 赛道 / 合规红线词），按广州服务器实测可达性标注 enabled（84/106 可达）。服务端抓 RSS/Atom（近 7 天、每源 ≤6 条、红线词过滤、按链接去重）落盘 `DATA_DIR/industry-news/items.json`；交易日 08:20 自动抓取并调用本站 AI 生成 `digest.json`（各赛道 3–5 条今日要点 + 展示标题翻译；要点链接经程序核对必须属于该赛道输入集合，编造链接整条丢弃）。参数：`{action:"board"}` 返回看板（赛道/要点/双语条目/源状态）；`{action:"refresh"}` 手动抓取；`{action:"digest"}` 手动重新提炼。前端入口为资讯页「产业链」页签。
 
+`/market-review`（本地服务，server/review.js；2026-10-31 融合计划第 2 期新增）：基于存档层数据。参数：`{action:"board", date?}` 返回程序看板（summary、历史分位 percentiles、连板天梯 ladder 与断层 ladderGaps、封板质量 sealQuality、近 5 日行业题材轮动 themes、当日 AI 复盘 report、该日相关的验证记录与累计战绩 scoreboard）；`{action:"generate", date}` 生成 AI 五段复盘（情绪/资金/题材/龙虎榜/龙头）并落盘 `DATA_DIR/review/YYYY-MM-DD.json`——生成后正文每个数字与资料包回查（按量级、含舍入容差），对不上的替换为「〔未核实〕」并计数；`{action:"verify"}` 返回验证记录与战绩。明日验证：复盘的 tomorrow.conditions（指标白名单 ztCount/maxHeight/promoteRate/breakRate/yztMedianPct/dtCount）写入 `review/verify.json`，次日存档 complete 后自动对账（全中/部分命中/未中）；目标日 09:15 后生成的标 late 不计战绩。自动生成：交易日 16:05 后、存档就绪时触发（失败退避每日 ≤3 次）。前端入口为新增「复盘」分页。
+
 ### 1.4 全局数值速览（细节见第二章 §21）
 
 | 项 | 数值 |

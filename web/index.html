@@ -31,6 +31,7 @@
     </div>
     <nav class="desktop-nav"><button class="desktop-nav-btn tab-btn active" data-tab="dashboard" type="button" aria-label="盯盘"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 18h16M6 14l4-4 3 3 5-7" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">盯盘</span><span class="desktop-nav-meta">持仓 / 自选 / 详情</span></span></button>
 <button class="desktop-nav-btn tab-btn" data-tab="market" type="button" aria-label="市场"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 19V9h4v10m2 0V5h4v14m2 0V2h4v17" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">市场</span><span class="desktop-nav-meta">指数 / 资金 / 市场观察</span></span></button>
+<button class="desktop-nav-btn tab-btn" data-tab="review" type="button" aria-label="复盘"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 5h14M5 12h14M5 19h9" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">复盘</span><span class="desktop-nav-meta">情绪 / 梯队 / 明日验证</span></span></button>
 <button class="desktop-nav-btn tab-btn" data-tab="research" type="button" aria-label="研究"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h4" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">研究</span><span class="desktop-nav-meta">候选 / 个股 / 每日报告</span></span></button>
 <button class="desktop-nav-btn tab-btn" data-tab="alerts" type="button" aria-label="提醒"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4zM10 21h4" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">提醒</span><span class="desktop-nav-meta">条件规则 / 触发记录</span></span></button>
 <button class="desktop-nav-btn tab-btn" data-tab="news" type="button" aria-label="资讯"><span class="desktop-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 5h16v14H4zM8 9h8M8 13h8" /></svg></span><span class="desktop-nav-copy"><span class="desktop-nav-label">资讯</span><span class="desktop-nav-meta">快讯 / 消息 / 来源</span></span></button><button class="desktop-nav-btn desktop-settings-btn" id="settings-btn" aria-label="设置" title="设置" type="button">
@@ -356,6 +357,17 @@
                 </div>
             </div>
         </section></section></div>
+<div class="tab-panel" id="tab-review"><div class="workspace-heading"><div><p class="eyebrow">DAILY REVIEW</p><h2>收盘之后，把今天看清楚</h2></div></div><section class="card review-section">
+            <div class="card-header">
+                <h2>情绪复盘</h2>
+            </div>
+            <div class="card-body" id="review-root">
+                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status">
+                    <strong class="ui-state-title">正在加载复盘</strong>
+                    <span class="ui-state-detail">存档数据返回后会在这里更新。</span>
+                </div>
+            </div>
+        </section></div>
 <div class="tab-panel" id="tab-research"><div class="workspace-heading"><div><p class="eyebrow">RESEARCH DESK</p><h2>有依据的研究，有时点的结论</h2></div></div><section id="report-center" aria-label="盘前盘后报告"></section><section class="card opportunity-radar-section">
             <div class="card-header">
                 <h2>候选初筛与 AI 研究</h2>
@@ -611,6 +623,7 @@
 <script src="modules/watchlist/custom-index.js"></script>
 <script src="modules/watchlist/watchlist.js"></script>
 <script src="modules/render-news.js"></script>
+<script src="modules/render-review.js"></script>
 <script src="modules/refresh-coordinator.js?rev=10002"></script>
 <script src="modules/workbench.js"></script>
 <script src="modules/research-reports.js"></script>

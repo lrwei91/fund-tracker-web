@@ -33,6 +33,7 @@
 | 研究 | 机会雷达、盘中筛选、个股快照与基本面、AI 单股研究报告、报告中心（盘前 / 盘后 / 周度复盘） |
 | 提醒 | 价格提醒规则 CRUD、30 秒巡检、交易时段 + 120 秒行情新鲜度校验、边沿触发 + 冷却 + 每日上限 |
 | 存档 | 收盘存档层：每交易日 15:35 后把东财四池（涨停/炸板/跌停/昨日涨停）定稿名单与情绪读数落盘，近 31 天自动回补，为复盘类功能攒历史序列 |
+| 复盘 | 独立「复盘」分页：情绪读数与历史分位、连板天梯（标断层）、封板质量、近 5 日题材轮动；AI 五段复盘（情绪/资金/题材/龙虎榜/龙头）16:05 自动生成，数字逐个回查资料包、无出处标〔未核实〕；明日验证条件次日收盘自动对账并累计战绩 |
 | 资讯 | 财联社快讯、个股新闻、全球资讯、新闻源可切换；产业链视图：106 个全球产业源 / 12 赛道（移植自 investment-news），AI 每日提炼中文今日要点 + 标题翻译，要点带原文溯源 |
 | 交互 | ⌘K 全局搜索、明暗主题、SSE 实时事件推送、浏览器通知 + 站内 toast 双通道提醒 |
 
@@ -63,6 +64,7 @@ fund-tracker-web/
 │   ├── archive.js          市场存档层（收盘四池定稿 + 情绪读数落盘）
 │   ├── industry-news.js    产业链资讯（RSS 抓取 + AI 今日要点/翻译）
 │   ├── industry-sources.json 产业链源库（106 源 / 12 赛道，含合规词表）
+│   ├── review.js           复盘层（情绪看板 + AI 五段复盘 + 数字核对 + 明日验证对账）
 │   ├── calendar.js         2025–2026 上交所休市表
 │   └── test-routes.js      路由自测（对照响应夹具）
 ├── test/routes.json        23 条路由的成功响应夹具
@@ -127,6 +129,7 @@ cd server && node test-routes.js
 | `ai-secret.json` | AI 服务的 API Key | 写入时 0600 权限，不下发前端 |
 | `archive/` | 每日市场存档（四池定稿 + 情绪读数） | `YYYY-MM-DD.json` 一天一文件，另有 `state.json` 记失败尝试 |
 | `industry-news/` | 产业链资讯抓取结果与 AI 要点 | `items.json`（原文清单）与 `digest.json`（今日要点/翻译） |
+| `review/` | AI 复盘报告与明日验证记录 | `YYYY-MM-DD.json`（当日复盘）、`verify.json`（验证条件与对账结果） |
 
 ## 部署
 
@@ -168,7 +171,7 @@ systemd 单元（`deploy/stock-web.service`）以 `Restart=always` 常驻，工�
 | 市场全景 | `/market-data` `/sector-rotation` `/market-warnings` `/intraday-screening` `/opportunity-radar` |
 | 资金与情绪 | `/fund-flow-120d` `/dragon-tiger` `/limit-up` `/hot-rank` |
 | 资讯 | `/news` `/cls-news` `/global-news` `/stock-news` |
-| 服务类（server.js 内建） | `/price-alerts` `/stock-ai-research` `/research-reports` `/market-archive` `/industry-news` |
+| 服务类（server.js 内建） | `/price-alerts` `/stock-ai-research` `/research-reports` `/market-archive` `/industry-news` `/market-review` |
 
 请求参数、上游地址、降级链与错误码定义见 [`API-SPEC.md`](API-SPEC.md)。
 

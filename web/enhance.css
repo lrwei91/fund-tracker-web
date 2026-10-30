@@ -176,3 +176,56 @@
 @media (max-width: 640px) {
   .electron-app .industry-board-meta { align-items: flex-start; flex-direction: column; }
 }
+
+/* ============ 收盘复盘（融合 vibe-astock 复盘体系） ============ */
+.electron-app .review-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 0 12px;
+  border-bottom: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; }
+.electron-app .review-toolbar select { margin-left: 6px; }
+.electron-app .review-mood strong { color: var(--text-primary); font-size: 15px; }
+.electron-app .review-warn { color: var(--amber); }
+.electron-app .review-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 12px;
+  background: var(--border); border: 1px solid var(--border); }
+.electron-app .review-metric { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--color-surface); }
+.electron-app .review-metric span { color: var(--text-tertiary); font-size: 11px; }
+.electron-app .review-metric strong { color: var(--text-primary); font-size: 19px; font-weight: 700; }
+.electron-app .review-metric strong small { margin-left: 2px; font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
+.electron-app .review-metric em { color: var(--text-tertiary); font-size: 10px; font-style: normal; }
+.electron-app .review-breadth { margin: 10px 0 0; color: var(--text-secondary); font-size: 12px; }
+.electron-app .review-block { margin-top: 18px; }
+.electron-app .review-block > h3 { margin: 0 0 8px; color: var(--text-primary); font-size: 14px; }
+.electron-app .review-block > h3 small { color: var(--text-tertiary); font-size: 11px; font-weight: 400; }
+.electron-app .review-gap { margin: 0 0 8px; color: var(--amber); font-size: 12px; }
+.electron-app .review-ladder { display: flex; flex-direction: column; }
+.electron-app .review-ladder-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.electron-app .review-level { flex-shrink: 0; min-width: 44px; color: var(--text-primary); font-size: 13px; font-weight: 700; }
+.electron-app .review-ladder-row > em { flex-shrink: 0; color: var(--text-tertiary); font-size: 11px; font-style: normal; padding-top: 3px; }
+.electron-app .review-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.electron-app .review-chip { padding: 2px 8px; border-radius: 999px; background: var(--color-surface-subtle);
+  color: var(--text-secondary); font-size: 12px; }
+.electron-app .review-chip small { color: var(--text-tertiary); font-size: 10px; }
+.electron-app .review-theme-wrap { overflow-x: auto; }
+.electron-app .review-theme { width: 100%; border-collapse: collapse; font-size: 12px; }
+.electron-app .review-theme th, .electron-app .review-theme td { padding: 6px 8px; border-bottom: 1px solid var(--border);
+  text-align: right; color: var(--text-secondary); white-space: nowrap; }
+.electron-app .review-theme th:first-child, .electron-app .review-theme td:first-child { text-align: left; color: var(--text-primary); }
+.electron-app .review-theme td.is-today { color: var(--text-primary); font-weight: 700; }
+.electron-app .review-theme td.is-up { color: var(--red); }
+.electron-app .review-theme td.is-down { color: var(--green); }
+.electron-app .review-report-meta { margin: 0 0 8px; color: var(--text-tertiary); font-size: 11px; }
+.electron-app .review-section { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.electron-app .review-section strong { color: var(--text-primary); font-size: 12px; }
+.electron-app .review-section p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; line-height: 1.75; }
+.electron-app .review-tomorrow { margin-top: 12px; padding: 10px 12px; background: var(--color-surface-subtle); }
+.electron-app .review-tomorrow strong { color: var(--text-primary); font-size: 13px; }
+.electron-app .review-tomorrow ul { margin: 6px 0; padding-left: 17px; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
+.electron-app .review-tomorrow small { color: var(--text-tertiary); font-size: 11px; }
+.electron-app .review-generate-btn { min-height: 32px; padding: 4px 14px; font-size: 13px; }
+.electron-app .review-verify { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.electron-app .review-verify > div { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.electron-app .review-verify strong { color: var(--text-primary); font-size: 13px; }
+.electron-app .review-verify span { color: var(--text-tertiary); font-size: 11px; }
+.electron-app .review-verify .review-outcome { color: var(--amber); font-size: 12px; }
+.electron-app .review-verify ul { margin: 6px 0 0; padding-left: 17px; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
+@media (max-width: 640px) {
+  .electron-app .review-metrics { grid-template-columns: repeat(2, 1fr); }
+}
