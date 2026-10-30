@@ -65,6 +65,10 @@ Web 复刻对应关系（建议）：`fetch_data` → 一个 `POST /api/fetch` �
 
 后端另支持 3 条前端未直接调用的路由（被研究快照/雷达内部调用，第二章 §0.3 的策略表含其策略）：`/stock-risk`（个股风险：公告+解禁，`handlers/detail.rs::risk`）、`/dragon-tiger`（龙虎榜，`handlers/signals.rs::dragon_tiger`）、`/stock-fundamentals`（基本面，stale 3600s）。基金类路由（fund-*）已退役，dispatch 返回 `{success:false, message:"API not found"}`。
 
+`/market-archive`（本地存档，server/archive.js；2026-10-30 融合计划第 0 期新增）：每个交易日 15:35 后把东财四池定稿名单与情绪读数落盘 `DATA_DIR/archive/YYYY-MM-DD.json`（启动与每 10 分钟巡检，近 31 天缺失/不完整自动回补，每轮 ≤3 天；涨停池失败整日不落盘，其余池失败记 `missing` 且 `complete=false`）。参数：`{action:"list", days?}` 返回各日 summary；`{action:"day", date:"YYYY-MM-DD"}` 返回全量（pools/summary/breadth，breadth 仅当日抓取有值）；`{action:"capture", date}` 手动抓取某交易日。summary 含 ztCount/zbCount/dtCount/yztCount、breakRate、maxHeight、ladder（连板梯队分布）、promoteRate 与 promoteByLevel（按昨日连板数分组的再涨停率，口径 >=9.8%）、yztMedianPct/yztAvgPct/yztUpRate（昨日涨停今日表现）。注意：东财池接口对历史日期只保留约 14 个交易日（2026-10-30 实测 10-12 可取、10-09 返回空池），超期返回空池与失败不可区分，故涨停池为空一律按未取到处理、不落盘；过去日期失败满 3 次在 `archive/state.json` 标 gaveUp 停止重试。
+
+`/industry-news`（本地服务，server/industry-news.js；2026-10-30 融合计划第 1 期新增）：源库 `server/industry-sources.json` 移植自 investment-news（MIT；106 源 / 12 赛道 / 合规红线词），按广州服务器实测可达性标注 enabled（84/106 可达）。服务端抓 RSS/Atom（近 7 天、每源 ≤6 条、红线词过滤、按链接去重）落盘 `DATA_DIR/industry-news/items.json`；交易日 08:20 自动抓取并调用本站 AI 生成 `digest.json`（各赛道 3–5 条今日要点 + 展示标题翻译；要点链接经程序核对必须属于该赛道输入集合，编造链接整条丢弃）。参数：`{action:"board"}` 返回看板（赛道/要点/双语条目/源状态）；`{action:"refresh"}` 手动抓取；`{action:"digest"}` 手动重新提炼。前端入口为资讯页「产业链」页签。
+
 ### 1.4 全局数值速览（细节见第二章 §21）
 
 | 项 | 数值 |

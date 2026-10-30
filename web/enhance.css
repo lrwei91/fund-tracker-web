@@ -136,3 +136,43 @@
   .electron-app .market-observation .sector-rotation-detail { grid-template-columns: 1fr 1fr; column-gap: 22px; }
   .electron-app .market-observation .sector-rotation-detail > div:nth-child(-n + 2) { border-top: none; }
 }
+
+/* ============ 产业链资讯（融合 investment-news） ============ */
+.electron-app .industry-board { padding-top: 8px; }
+.electron-app .industry-board-meta { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
+.electron-app .industry-board-meta > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
+.electron-app .industry-board-meta strong { color: var(--text-primary); font-size: 14px; }
+.electron-app .industry-board-meta span { color: var(--text-tertiary); font-size: 11px; }
+.electron-app .industry-actions { display: flex; flex-shrink: 0; gap: 8px; }
+.electron-app .industry-actions button { min-height: 30px; padding: 4px 10px; font-size: 12px; }
+.electron-app .industry-sectors { display: grid; grid-template-columns: 1fr; gap: 0 24px; }
+.electron-app .industry-sector { min-width: 0; padding: 14px 0 16px; border-bottom: 1px solid var(--border); }
+.electron-app .industry-sector > header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.electron-app .industry-sector > header > span { width: 4px; height: 18px; border-radius: 2px; background: var(--industry-accent); }
+.electron-app .industry-sector > header h3 { margin: 0; color: var(--text-primary); font-size: 14px; }
+.electron-app .industry-sector > header em { margin-left: auto; color: var(--text-tertiary); font-size: 11px; font-style: normal; }
+.electron-app .industry-points { padding: 10px 12px; background: var(--color-surface-subtle); }
+.electron-app .industry-points > strong { color: var(--text-primary); font-size: 12px; }
+.electron-app .industry-points ul { margin: 7px 0 0; padding-left: 17px; }
+.electron-app .industry-points li { margin: 7px 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.electron-app .industry-points li p { margin: 0; }
+.electron-app .industry-points li a { margin-right: 10px; color: var(--amber); font-size: 11px; text-decoration: none; }
+.electron-app .industry-points li a:hover { text-decoration: underline; }
+.electron-app .industry-no-points { padding: 8px 0 2px; color: var(--text-tertiary); font-size: 12px; }
+.electron-app .industry-news-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.electron-app .industry-news-item:last-child { border-bottom: none; }
+.electron-app .industry-news-item > div { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 3px;
+  color: var(--text-tertiary); font-size: 11px; }
+.electron-app .industry-news-item > a { color: var(--text-primary); font-size: 13px; font-weight: 650; line-height: 1.5;
+  text-decoration: none; }
+.electron-app .industry-news-item > a:hover { color: var(--amber); }
+.electron-app .industry-original { margin: 2px 0 0; color: var(--text-tertiary); font-size: 11px; line-height: 1.5; }
+.electron-app .industry-summary { display: -webkit-box; margin: 4px 0 0; overflow: hidden; color: var(--text-secondary);
+  font-size: 12px; line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+@media (min-width: 1100px) {
+  .electron-app .industry-sectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .electron-app .industry-board-meta { align-items: flex-start; flex-direction: column; }
+}

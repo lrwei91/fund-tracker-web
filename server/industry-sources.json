@@ -1,0 +1,842 @@
+{
+ "_comment": "源库移植自 simonlin1212/investment-news（MIT，见 research/ 留档），2026-10-30 按广州服务器实测可达性标注 enabled（84/106 可达；403 类保留启用、抓取时以实际结果为准；网络不可达/超时类先禁用）。",
+ "fetch": {
+  "per_source": 6,
+  "timeout": 15,
+  "recent_days": 7
+ },
+ "industries": [
+  {
+   "key": "ai",
+   "name": "AI / 大模型",
+   "accent": "#ff5a1f"
+  },
+  {
+   "key": "semi",
+   "name": "半导体 / 芯片",
+   "accent": "#22d3ee"
+  },
+  {
+   "key": "robot",
+   "name": "机器人 / 自动化",
+   "accent": "#14b8a6"
+  },
+  {
+   "key": "auto",
+   "name": "汽车 / 新能源车",
+   "accent": "#fb7185"
+  },
+  {
+   "key": "energy",
+   "name": "能源 / 新能源",
+   "accent": "#84cc16"
+  },
+  {
+   "key": "bio",
+   "name": "生物医药 / 健康",
+   "accent": "#ec4899"
+  },
+  {
+   "key": "space",
+   "name": "航天 / 太空",
+   "accent": "#8b5cf6"
+  },
+  {
+   "key": "security",
+   "name": "网络安全",
+   "accent": "#ef4444"
+  },
+  {
+   "key": "tech",
+   "name": "科技 / 互联网",
+   "accent": "#3b82f6"
+  },
+  {
+   "key": "consumer",
+   "name": "消费电子 / 数码",
+   "accent": "#a855f7"
+  },
+  {
+   "key": "macro",
+   "name": "财经 / 宏观",
+   "accent": "#eab308"
+  },
+  {
+   "key": "science",
+   "name": "科学 / 前沿",
+   "accent": "#38bdf8"
+  }
+ ],
+ "redline_keywords": [
+  "赌博",
+  "博彩",
+  "赌场",
+  "彩票",
+  "下注",
+  "押注",
+  "预测市场",
+  "polymarket",
+  "kalshi",
+  "prediction market",
+  "加密货币",
+  "虚拟货币",
+  "比特币",
+  "以太坊",
+  "稳定币",
+  "crypto",
+  "bitcoin",
+  "ethereum",
+  "stablecoin",
+  "gambling",
+  "betting",
+  "casino",
+  "lottery",
+  "sportsbook",
+  "色情",
+  "porn"
+ ],
+ "sources": [
+  {
+   "name": "OpenAI",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://openai.com/news/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "Google Research",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://research.google/blog/rss/",
+   "enabled": false
+  },
+  {
+   "name": "Hugging Face",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://huggingface.co/blog/feed.xml",
+   "enabled": false
+  },
+  {
+   "name": "量子位",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://www.qbitai.com/feed",
+   "enabled": true
+  },
+  {
+   "name": "MIT Tech Review AI",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+   "enabled": true
+  },
+  {
+   "name": "The Verge AI",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+   "enabled": true
+  },
+  {
+   "name": "TechCrunch AI",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+   "enabled": true
+  },
+  {
+   "name": "arXiv cs.AI",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://export.arxiv.org/rss/cs.AI",
+   "enabled": true
+  },
+  {
+   "name": "KDnuggets",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://www.kdnuggets.com/feed",
+   "enabled": true
+  },
+  {
+   "name": "MarkTechPost",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://www.marktechpost.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "BAIR Blog",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://bair.berkeley.edu/blog/feed.xml",
+   "enabled": true
+  },
+  {
+   "name": "Import AI",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://importai.substack.com/feed",
+   "enabled": false
+  },
+  {
+   "name": "DeepMind",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://deepmind.google/blog/rss.xml",
+   "enabled": false
+  },
+  {
+   "name": "智东西",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://zhidx.com/rss",
+   "enabled": true
+  },
+  {
+   "name": "机器之心",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://wechat2rss.xlab.app/feed/51e92aad2728acdd1fda7314be32b16639353001.xml",
+   "enabled": true
+  },
+  {
+   "name": "新智元",
+   "hint": "ai",
+   "type": "rss",
+   "url": "https://wechat2rss.xlab.app/feed/ede30346413ea70dbef5d485ea5cbb95cca446e7.xml",
+   "enabled": true
+  },
+  {
+   "name": "DIGITIMES",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://www.digitimes.com/rss/daily.xml",
+   "enabled": true
+  },
+  {
+   "name": "SemiAnalysis",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://semianalysis.substack.com/feed",
+   "enabled": false
+  },
+  {
+   "name": "Semiconductor Engineering",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://semiengineering.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "EE Times",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://www.eetimes.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "IEEE Spectrum 半导体",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://spectrum.ieee.org/feeds/topic/semiconductors.rss",
+   "enabled": true
+  },
+  {
+   "name": "SemiWiki",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://semiwiki.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Semiconductor Today",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://www.semiconductor-today.com/rss/news.xml",
+   "enabled": true
+  },
+  {
+   "name": "Electronics Weekly",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://www.electronicsweekly.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "All About Circuits",
+   "hint": "semi",
+   "type": "rss",
+   "url": "https://www.allaboutcircuits.com/rss/news/",
+   "enabled": true
+  },
+  {
+   "name": "The Robot Report",
+   "hint": "robot",
+   "type": "rss",
+   "url": "https://www.therobotreport.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "IEEE Spectrum 机器人",
+   "hint": "robot",
+   "type": "rss",
+   "url": "https://spectrum.ieee.org/feeds/topic/robotics.rss",
+   "enabled": true
+  },
+  {
+   "name": "Robohub",
+   "hint": "robot",
+   "type": "rss",
+   "url": "https://robohub.org/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Robotics & Automation",
+   "hint": "robot",
+   "type": "rss",
+   "url": "https://roboticsandautomationnews.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Robotics Business Review",
+   "hint": "robot",
+   "type": "rss",
+   "url": "https://www.roboticsbusinessreview.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Electrek",
+   "hint": "auto",
+   "type": "rss",
+   "url": "https://electrek.co/feed/",
+   "enabled": true
+  },
+  {
+   "name": "InsideEVs",
+   "hint": "auto",
+   "type": "rss",
+   "url": "https://insideevs.com/rss/articles/all/",
+   "enabled": true
+  },
+  {
+   "name": "The Verge Transport",
+   "hint": "auto",
+   "type": "rss",
+   "url": "https://www.theverge.com/rss/transportation/index.xml",
+   "enabled": true
+  },
+  {
+   "name": "TechCrunch Transport",
+   "hint": "auto",
+   "type": "rss",
+   "url": "https://techcrunch.com/category/transportation/feed/",
+   "enabled": true
+  },
+  {
+   "name": "CnEVPost",
+   "hint": "auto",
+   "type": "rss",
+   "url": "https://cnevpost.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "CleanTechnica",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://cleantechnica.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Utility Dive",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.utilitydive.com/feeds/news/",
+   "enabled": true
+  },
+  {
+   "name": "pv magazine",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.pv-magazine.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Energy Storage News",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.energy-storage.news/feed/",
+   "enabled": true
+  },
+  {
+   "name": "OilPrice",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://oilprice.com/rss/main",
+   "enabled": true
+  },
+  {
+   "name": "Canary Media",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.canarymedia.com/articles.rss",
+   "enabled": true
+  },
+  {
+   "name": "PV Tech",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.pv-tech.org/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Renewable Energy World",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.renewableenergyworld.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "国际能源网",
+   "hint": "energy",
+   "type": "rss",
+   "url": "https://www.in-en.com/feed/rss.php?mid=21",
+   "enabled": true
+  },
+  {
+   "name": "STAT News",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://www.statnews.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Endpoints News",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://endpts.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "FierceBiotech",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://www.fiercebiotech.com/rss/xml",
+   "enabled": true
+  },
+  {
+   "name": "FiercePharma",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://www.fiercepharma.com/rss/xml",
+   "enabled": true
+  },
+  {
+   "name": "BioPharma Dive",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://www.biopharmadive.com/feeds/news/",
+   "enabled": true
+  },
+  {
+   "name": "GEN",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://www.genengnews.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Nature Biotech",
+   "hint": "bio",
+   "type": "rss",
+   "url": "https://www.nature.com/nbt.rss",
+   "enabled": true
+  },
+  {
+   "name": "SpaceNews",
+   "hint": "space",
+   "type": "rss",
+   "url": "https://spacenews.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Space.com",
+   "hint": "space",
+   "type": "rss",
+   "url": "https://www.space.com/feeds/all",
+   "enabled": true
+  },
+  {
+   "name": "Spaceflight Now",
+   "hint": "space",
+   "type": "rss",
+   "url": "https://spaceflightnow.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Payload",
+   "hint": "space",
+   "type": "rss",
+   "url": "https://payloadspace.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "NASA",
+   "hint": "space",
+   "type": "rss",
+   "url": "https://www.nasa.gov/news-release/feed/",
+   "enabled": true
+  },
+  {
+   "name": "NASASpaceflight",
+   "hint": "space",
+   "type": "rss",
+   "url": "https://www.nasaspaceflight.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Krebs on Security",
+   "hint": "security",
+   "type": "rss",
+   "url": "https://krebsonsecurity.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "The Hacker News",
+   "hint": "security",
+   "type": "rss",
+   "url": "https://feeds.feedburner.com/TheHackersNews",
+   "enabled": false
+  },
+  {
+   "name": "BleepingComputer",
+   "hint": "security",
+   "type": "rss",
+   "url": "https://www.bleepingcomputer.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Dark Reading",
+   "hint": "security",
+   "type": "rss",
+   "url": "https://www.darkreading.com/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "SecurityWeek",
+   "hint": "security",
+   "type": "rss",
+   "url": "https://www.securityweek.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "TechCrunch",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://techcrunch.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "The Verge",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.theverge.com/rss/index.xml",
+   "enabled": true
+  },
+  {
+   "name": "Ars Technica",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://feeds.arstechnica.com/arstechnica/index",
+   "enabled": true
+  },
+  {
+   "name": "Hacker News",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://hnrss.org/frontpage",
+   "enabled": true
+  },
+  {
+   "name": "WIRED",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.wired.com/feed/rss",
+   "enabled": true
+  },
+  {
+   "name": "Techmeme",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.techmeme.com/feed.xml",
+   "enabled": true
+  },
+  {
+   "name": "36氪",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://36kr.com/feed",
+   "enabled": true
+  },
+  {
+   "name": "钛媒体",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.tmtpost.com/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "IT之家",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.ithome.com/rss/",
+   "enabled": true
+  },
+  {
+   "name": "GitHub Blog",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://github.blog/feed/",
+   "enabled": true
+  },
+  {
+   "name": "Stratechery",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://stratechery.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "虎嗅",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://rss.huxiu.com/",
+   "enabled": true
+  },
+  {
+   "name": "动点科技",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://cn.technode.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "月光博客",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.williamlong.info/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "Solidot",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.solidot.org/index.rss",
+   "enabled": true
+  },
+  {
+   "name": "白鲸出海",
+   "hint": "tech",
+   "type": "rss",
+   "url": "https://www.baijingapp.com/feed",
+   "enabled": true
+  },
+  {
+   "name": "Engadget",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://www.engadget.com/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "9to5Mac",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://9to5mac.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "9to5Google",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://9to5google.com/feed/",
+   "enabled": true
+  },
+  {
+   "name": "GSMArena",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://www.gsmarena.com/rss-news-reviews.php3",
+   "enabled": true
+  },
+  {
+   "name": "Android Authority",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://www.androidauthority.com/feed/",
+   "enabled": false
+  },
+  {
+   "name": "DPReview",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://www.dpreview.com/feeds/news.xml",
+   "enabled": true
+  },
+  {
+   "name": "少数派",
+   "hint": "consumer",
+   "type": "rss",
+   "url": "https://sspai.com/feed",
+   "enabled": true
+  },
+  {
+   "name": "CNBC",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+   "enabled": true
+  },
+  {
+   "name": "Financial Times",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://www.ft.com/rss/home",
+   "enabled": false
+  },
+  {
+   "name": "WSJ Markets",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
+   "enabled": true
+  },
+  {
+   "name": "MarketWatch",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://feeds.marketwatch.com/marketwatch/topstories/",
+   "enabled": true
+  },
+  {
+   "name": "Yahoo Finance",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://finance.yahoo.com/news/rssindex",
+   "enabled": true
+  },
+  {
+   "name": "华尔街见闻",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://dedicated.wallstreetcn.com/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "Finextra",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://www.finextra.com/rss/headlines.aspx",
+   "enabled": true
+  },
+  {
+   "name": "SEC",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://www.sec.gov/news/pressreleases.rss",
+   "enabled": true
+  },
+  {
+   "name": "Federal Reserve",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+   "enabled": true
+  },
+  {
+   "name": "Seeking Alpha",
+   "hint": "macro",
+   "type": "rss",
+   "url": "https://seekingalpha.com/market_currents.xml",
+   "enabled": true
+  },
+  {
+   "name": "东方财富股票",
+   "hint": "macro",
+   "type": "rss",
+   "url": "http://rss.eastmoney.com/rss_stock.xml",
+   "enabled": true
+  },
+  {
+   "name": "东方财富资讯",
+   "hint": "macro",
+   "type": "rss",
+   "url": "http://rss.eastmoney.com/rss_partener.xml",
+   "enabled": true
+  },
+  {
+   "name": "经济观察网",
+   "hint": "macro",
+   "type": "rss",
+   "url": "http://www.eeo.com.cn/rss.xml",
+   "enabled": true
+  },
+  {
+   "name": "Nature News",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://www.nature.com/nature.rss",
+   "enabled": true
+  },
+  {
+   "name": "ScienceDaily",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://www.sciencedaily.com/rss/all.xml",
+   "enabled": true
+  },
+  {
+   "name": "Quanta Magazine",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://api.quantamagazine.org/feed/",
+   "enabled": true
+  },
+  {
+   "name": "New Scientist",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://www.newscientist.com/feed/home/",
+   "enabled": true
+  },
+  {
+   "name": "Live Science",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://www.livescience.com/feeds/all",
+   "enabled": true
+  },
+  {
+   "name": "MIT News",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://news.mit.edu/rss/research",
+   "enabled": true
+  },
+  {
+   "name": "Science News",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://www.sciencenews.org/feed",
+   "enabled": true
+  },
+  {
+   "name": "Ars Technica Science",
+   "hint": "science",
+   "type": "rss",
+   "url": "https://feeds.arstechnica.com/arstechnica/science",
+   "enabled": true
+  }
+ ]
+}

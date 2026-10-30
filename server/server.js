@@ -59,9 +59,13 @@ async function getSnapshot(code) {
 const { AiService } = require('./ai');
 const { PriceAlerts } = require('./alerts');
 const { ReportCenter } = require('./reports');
+const { MarketArchive } = require('./archive');
+const { IndustryNews } = require('./industry-news');
 const ai = new AiService({ store, dataDir: DATA_DIR, gateway, getSnapshot });
 const alerts = new PriceAlerts({ store, getQuotes, emit });
 const reports = new ReportCenter({ store, ai, getSnapshot, getQuotes, emit });
+const archive = new MarketArchive({ dataDir: DATA_DIR, internals: dataRoutes ? dataRoutes.internals : null });
+const industryNews = new IndustryNews({ dataDir: DATA_DIR, ai });
 
 // ---- 响应信封 finalize（对齐 policy.rs）----
 const FAILURE_MESSAGES = {
@@ -143,6 +147,8 @@ async function dispatchData(routePath, query) {
   if (routePath === '/price-alerts') result = alerts.handle(query);
   else if (routePath === '/stock-ai-research') result = await ai.handle(query);
   else if (routePath === '/research-reports') result = await reports.handle(query);
+  else if (routePath === '/market-archive') result = await archive.handle(query);
+  else if (routePath === '/industry-news') result = await industryNews.handle(query);
   else result = await fetchDataRoute(routePath, query);
   result = finalize(result);
   if (key) {
@@ -346,6 +352,8 @@ server.listen(PORT, HOST, () => {
   console.log(`[stock-web] listening on http://${HOST}:${PORT} data=${DATA_DIR} dataRoutes=${!!dataRoutes}`);
   alerts.start();
   reports.start();
+  archive.start();
+  industryNews.start();
 });
 
 // ---- push2 依赖接口预热 ----

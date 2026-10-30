@@ -604,6 +604,85 @@ function createDataRoutes(gw) {
     return ok({ type: kind, date, count: items.length, items });
   }
 
+  // 存档层专用：一次取齐某日四池全量（pagesize 800，不走 limitUpEnv 的 100 上限）
+  // 并算当日情绪读数。zt 失败抛错（整日放弃）；其余池失败记 missing、名单为空。
+  async function archivePoolsData(dateStr) {
+    const date = String(dateStr || '').replace(/-/g, '');
+    const kinds = ['zt', 'zb', 'dt', 'yzt'];
+    const results = await Promise.allSettled(kinds.map((k) => pool(k, date, 800)));
+    const pools = {};
+    const missing = [];
+    results.forEach((r, i) => {
+      const kind = kinds[i];
+      if (r.status === 'fulfilled') pools[kind] = r.value.map((p) => mapPool(kind, p));
+      else { pools[kind] = []; missing.push(kind); }
+    });
+    if (missing.includes('zt')) {
+      const ztResult = results[0];
+      throw ztResult.status === 'rejected' ? ztResult.reason : new Error('涨停池取数失败');
+    }
+    // 涨停池为空绝不是有效定稿：A 股交易日不可能零涨停。东财池接口对超出保留期
+    // （实测约 14 个交易日）的历史日期直接返回空池，与取数失败无法区分，一律抛错
+    // 交存档层按「未取到」处理，禁止把空名单写成 complete 的存档。
+    if (pools.zt.length === 0) {
+      const allEmpty = pools.zb.length === 0 && pools.dt.length === 0 && pools.yzt.length === 0;
+      throw new Error(allEmpty
+        ? '上游对该日期未返回任何池数据（可能已超出保留期）'
+        : '涨停池为空但其他池非空，疑似数据异常');
+    }
+    const zt = pools.zt;
+    const zb = pools.zb;
+    const dt = pools.dt;
+    const yzt = pools.yzt;
+    const ladderMap = new Map();
+    for (const p of zt) {
+      const n = p.limitDays;
+      if (typeof n === 'number' && Number.isInteger(n) && n > 0) {
+        ladderMap.set(n, (ladderMap.get(n) || 0) + 1);
+      }
+    }
+    const ladder = {};
+    for (const key of [...ladderMap.keys()].sort((a, b) => a - b)) ladder[String(key)] = ladderMap.get(key);
+    const pcts = yzt.map((p) => p.pct).filter((n) => typeof n === 'number').sort((a, b) => a - b);
+    const median = pcts.length
+      ? pcts.length % 2 === 1
+        ? pcts[(pcts.length - 1) / 2]
+        : round((pcts[pcts.length / 2 - 1] + pcts[pcts.length / 2]) / 2, 2)
+      : null;
+    const avg = pcts.length ? round(pcts.reduce((s, n) => s + n, 0) / pcts.length, 2) : null;
+    const relimit = yzt.filter((p) => (p.pct ?? 0) >= 9.8).length;
+    // 分板位晋级率：按昨日连板数（ylbc）分组，看今日再涨停（>=9.8%，与 summary 既有口径一致）占比。
+    const levelMap = new Map();
+    for (const p of yzt) {
+      const lv = p.yLimitDays;
+      if (typeof lv !== 'number' || !Number.isInteger(lv) || lv < 1) continue;
+      const entry = levelMap.get(lv) || { count: 0, promoted: 0 };
+      entry.count += 1;
+      if ((p.pct ?? 0) >= 9.8) entry.promoted += 1;
+      levelMap.set(lv, entry);
+    }
+    const promoteByLevel = {};
+    for (const key of [...levelMap.keys()].sort((a, b) => a - b)) {
+      const e = levelMap.get(key);
+      promoteByLevel[String(key)] = { count: e.count, promoted: e.promoted, rate: round((e.promoted / e.count) * 100, 1) };
+    }
+    const summary = {
+      ztCount: zt.length,
+      zbCount: zb.length,
+      dtCount: dt.length,
+      yztCount: yzt.length,
+      breakRate: zt.length + zb.length > 0 ? round((zb.length / (zt.length + zb.length)) * 100, 1) : 0,
+      maxHeight: zt.reduce((max, p) => (typeof p.limitDays === 'number' ? Math.max(max, p.limitDays) : max), 0),
+      ladder,
+      promoteRate: yzt.length === 0 ? 0 : round((relimit / yzt.length) * 100, 1),
+      promoteByLevel,
+      yztMedianPct: median,
+      yztAvgPct: avg,
+      yztUpRate: yzt.length === 0 ? 0 : round((yzt.filter((p) => (p.pct ?? 0) > 0).length / yzt.length) * 100, 1),
+    };
+    return { pools, summary, missing };
+  }
+
   /* --------------------------------------------------------------- 新闻源封装 */
 
   function parseStatus(message) {
@@ -4162,6 +4241,8 @@ function createDataRoutes(gw) {
         }),
       ),
     dragonTiger: () => unwrap(dragonTigerEnv({})),
+    // 存档层：返回 {pools, summary, missing}（非信封）；zt 池失败时抛错。
+    archivePools: (dateStr) => archivePoolsData(dateStr),
     marketData: (type, boardType, period) =>
       unwrap(
         marketDataEnv({

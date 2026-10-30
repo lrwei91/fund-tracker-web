@@ -11,6 +11,7 @@
         jin10: { label: '金十快讯', path: '/news' },
         cls: { label: '财联社', path: '/cls-news' },
         eastmoney: { label: '东财资讯', path: '/global-news' },
+        industry: { label: '产业链资讯', path: '/industry-news' },
     };
 
     function stripHtmlTags(html) {
@@ -33,7 +34,7 @@
     }
 
     function emptyNewsState(source) {
-        return { items: [], cursor: null, hasMore: true, isLoading: false, error: false, actualSource: source, degraded: false, stale: false, staleAgeSeconds: 0 };
+        return { items: [], cursor: null, hasMore: true, isLoading: false, error: false, actualSource: source, degraded: false, stale: false, staleAgeSeconds: 0, board: null, actionBusy: '' };
     }
 
     function initNewsSourceTabs() {
@@ -46,7 +47,8 @@
                 state.currentNewsSource = tab.getAttribute('data-source');
                 if (!state.newsState[state.currentNewsSource]) resetNewsState(state.currentNewsSource);
                 renderNewsList();
-                if (!state.newsState[state.currentNewsSource].items.length) loadMoreNews();
+                var current = state.newsState[state.currentNewsSource];
+                if (state.currentNewsSource === 'industry' ? !current.board : !current.items.length) loadMoreNews();
             });
         });
     }
@@ -73,7 +75,7 @@
     }
 
     function maybeLoadMoreNews() {
-        if (state.currentTab !== 'news') return;
+        if (state.currentTab !== 'news' || state.currentNewsSource === 'industry') return;
         var current = state.newsState[state.currentNewsSource];
         if (!current || current.isLoading || !current.hasMore) return;
         loadMoreNews();
@@ -139,8 +141,52 @@
         };
     }
 
+    async function fetchIndustry(action) {
+        var res = await window.AppDataClient.fetch('/industry-news', { action: action || 'board' }, { force: true, cacheMode: 'bypass_fresh' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var json = await res.json();
+        if (!json.success) throw new Error(json.message || '产业链资讯暂不可用');
+        return json.data || {};
+    }
+
+    async function loadIndustryBoard() {
+        var current = state.newsState.industry;
+        if (!current || current.isLoading) return;
+        current.isLoading = true;
+        renderNewsList();
+        try {
+            current.board = await fetchIndustry('board');
+            current.error = false;
+        } catch (error) {
+            console.error('产业链资讯获取失败:', error);
+            current.error = true;
+        } finally {
+            current.isLoading = false;
+            renderNewsList();
+        }
+    }
+
+    async function runIndustryAction(action) {
+        var current = state.newsState.industry;
+        if (!current || current.actionBusy || current.isLoading) return;
+        current.actionBusy = action;
+        renderNewsList();
+        try {
+            await fetchIndustry(action);
+            current.board = await fetchIndustry('board');
+            current.error = false;
+        } catch (error) {
+            console.error('产业链资讯操作失败:', error);
+            current.error = true;
+        } finally {
+            current.actionBusy = '';
+            renderNewsList();
+        }
+    }
+
     async function loadMoreNews() {
         var source = state.currentNewsSource;
+        if (source === 'industry') return loadIndustryBoard();
         var current = state.newsState[source];
         var container = document.getElementById('news-list');
         if (!current || current.isLoading || (current.items.length && !current.hasMore)) return;
@@ -180,6 +226,7 @@
 
     async function refreshNewsData(force) {
         var source = state.currentNewsSource;
+        if (source === 'industry') return loadIndustryBoard();
         var current = state.newsState[source];
         if (!current || current.isLoading) return;
         if (!current.items.length) return loadMoreNews();
@@ -239,6 +286,10 @@
         if (!container) return;
         var current = state.newsState[state.currentNewsSource];
         if (!current) return;
+        if (state.currentNewsSource === 'industry') {
+            renderIndustryBoard(container, current);
+            return;
+        }
         if (current.isLoading && !current.items.length) {
             container.innerHTML = uiState.render('loading', {
                 title: '正在加载快讯',
@@ -275,6 +326,97 @@
         observeLoadSentinel();
     }
 
+    function formatIndustryTime(value, withDate) {
+        if (!value) return '暂无';
+        var date = new Date(value);
+        if (isNaN(date.getTime())) return String(value);
+        var options = { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false };
+        if (withDate) { options.month = '2-digit'; options.day = '2-digit'; }
+        return date.toLocaleString('zh-CN', options);
+    }
+
+    function industryLinkLabel(link, linkMap) {
+        var found = linkMap[link];
+        if (!found) return '原文';
+        return found.source + '原文';
+    }
+
+    function renderIndustryBoard(container, current) {
+        if (current.isLoading && !current.board) {
+            container.innerHTML = uiState.render('loading', {
+                title: '正在加载产业链资讯',
+                detail: '全球产业信号返回后会在这里更新。',
+            });
+            return;
+        }
+        if (current.error && !current.board) {
+            container.innerHTML = uiState.render('error', {
+                title: '产业链资讯暂不可用',
+                detail: '请检查网络或稍后重试。',
+                retryScope: 'news',
+            });
+            return;
+        }
+        var board = current.board;
+        if (!board || !Array.isArray(board.sectors)) {
+            container.innerHTML = uiState.render('empty', {
+                title: '暂无产业链资讯',
+                detail: '服务端尚未完成第一次抓取。',
+            });
+            return;
+        }
+        var status = Array.isArray(board.sourceStatus) ? board.sourceStatus : [];
+        var okSources = status.filter(function (s) { return s.ok; }).length;
+        var totalItems = board.sectors.reduce(function (sum, s) { return sum + (Array.isArray(s.items) ? s.items.length : 0); }, 0);
+        var linkMap = {};
+        board.sectors.forEach(function (sector) {
+            (sector.items || []).forEach(function (item) { linkMap[item.link] = item; });
+        });
+        var busy = current.actionBusy;
+        var html = '<div class="industry-board">' +
+            '<div class="industry-board-meta"><div><strong>全球产业链信号</strong><span>抓取 ' + utils.escapeHtml(formatIndustryTime(board.fetchedAt, true)) +
+            ' · 要点 ' + utils.escapeHtml(formatIndustryTime(board.digestAt, true)) +
+            (board.digestModel ? ' · ' + utils.escapeHtml(board.digestModel) : '') +
+            ' · 信息源 ' + okSources + '/' + status.length + ' 可用 · 展示 ' + totalItems + ' 条</span></div>' +
+            '<div class="industry-actions"><button type="button" data-industry-action="refresh"' + (busy ? ' disabled' : '') + '>' + (busy === 'refresh' ? '抓取中…' : '抓取最新') +
+            '</button><button type="button" data-industry-action="digest"' + (busy ? ' disabled' : '') + '>' + (busy === 'digest' ? '提炼中…' : '重新提炼') + '</button></div></div>';
+        if (current.error) html += '<div class="news-source-warning">最近一次操作失败，当前展示上次结果。</div>';
+        html += '<div class="industry-sectors">';
+        board.sectors.forEach(function (sector) {
+            html += '<section class="industry-sector" style="--industry-accent:' + utils.escapeHtml(sector.accent || '#888') + '">' +
+                '<header><span></span><h3>' + utils.escapeHtml(sector.name) + '</h3><em>' + (sector.items ? sector.items.length : 0) + ' 条</em></header>';
+            if (sector.points && sector.points.length) {
+                html += '<div class="industry-points"><strong>今日要点</strong><ul>';
+                sector.points.forEach(function (point) {
+                    html += '<li><p>' + utils.escapeHtml(point.text) + '</p><div>' +
+                        (point.links || []).map(function (link) {
+                            return '<a href="' + utils.escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">' + utils.escapeHtml(industryLinkLabel(link, linkMap)) + '</a>';
+                        }).join('') + '</div></li>';
+                });
+                html += '</ul></div>';
+            } else {
+                html += '<div class="industry-no-points">暂无今日要点</div>';
+            }
+            if (sector.items && sector.items.length) {
+                html += '<div class="industry-items">';
+                sector.items.forEach(function (item) {
+                    var displayTitle = item.titleZh || item.title;
+                    html += '<article class="industry-news-item"><div><span>' + utils.escapeHtml(item.source || '') + '</span><time>' + utils.escapeHtml(formatIndustryTime(item.ts, true)) + '</time></div>' +
+                        '<a href="' + utils.escapeHtml(item.link) + '" target="_blank" rel="noopener noreferrer">' + utils.escapeHtml(displayTitle) + '</a>' +
+                        (item.titleZh && item.titleZh !== item.title ? '<p class="industry-original">' + utils.escapeHtml(item.title) + '</p>' : '') +
+                        (item.summary ? '<p class="industry-summary">' + utils.escapeHtml(item.summary) + '</p>' : '') + '</article>';
+                });
+                html += '</div>';
+            } else {
+                html += '<div class="industry-no-points">近 7 天暂无可显示资讯</div>';
+            }
+            html += '</section>';
+        });
+        html += '</div></div>';
+        container.innerHTML = html;
+        bindNewsContainer(container);
+    }
+
     function renderNewsItem(item) {
         if (!item.title && !item.summary) return '';
         var expanded = !!expandedNewsKeys[itemKey(item)];
@@ -303,6 +445,8 @@
         if (container.dataset.newsBound === 'true') return;
         container.dataset.newsBound = 'true';
         container.addEventListener('click', function (event) {
+            var industryAction = event.target.closest('[data-industry-action]');
+            if (industryAction) { runIndustryAction(industryAction.getAttribute('data-industry-action')); return; }
             if (event.target.closest('[data-news-load-more]')) { loadMoreNews(); return; }
             var item = event.target.closest('.news-item');
             if (item) toggleNewsItem(item);
