@@ -1,5 +1,5 @@
 // ================================================================
-// 市场信号 — 机会雷达 / 市场热度 / 打板情绪 (涨停 / 炸板 / 跌停 / 昨涨停)
+// 市场信号 — 机会雷达 / 市场热度（同花顺+东财合并榜）
 // 暴露到 window.AppSignals;
 // 直接 script 引入,无需 import/require
 // 依赖:window.AppState, window.AppUtils, window.AppCache
@@ -621,350 +621,159 @@
     }
 
     // ============================================================
-    // 市场热度 (同花顺热榜 + 东财人气榜)
+    // 市场热度（同花顺热榜 + 东财人气榜合并榜）
+    // 合并口径：每榜按名次折算分数 score = (N - rank + 1) / N * 100（N 为该榜条数）；
+    // 两榜都有数据时各占 50%；只在一榜上榜的股票，另一榜记 0 分；
+    // 某个数据源整体无数据时，权重自动归一（有数据的源占 100%）。
+    // 合并后按综合分排序取前 30，并保留双榜原始名次供核对。
     // ============================================================
 
-    function getActiveHotRankSource() {
-        try { return window.AppStorage.getItem(KEYS.HOT_RANK_SOURCE_KEY) || 'ths'; } catch (e) { return 'ths'; }
-    }
+    var HOT_RANK_LIMIT = 30;
+
     function hotRankCacheKey(source) {
         return source === 'em' ? KEYS.HOT_RANK_CACHE_EM_KEY : KEYS.HOT_RANK_CACHE_THS_KEY;
     }
+    // 兼容旧调用：合并榜没有“当前源”的概念，固定返回 combined。
+    function getActiveHotRankSource() { return 'combined'; }
 
-    async function loadHotRankData(source, force) {
-        source = source || 'ths';
+    function rankScore(items, rank) {
+        var n = items.length;
+        if (!n || !rank || rank < 1 || rank > n) return 0;
+        return ((n - rank + 1) / n) * 100;
+    }
+
+    function mergeHotRankItems(thsItems, emItems) {
+        var ths = Array.isArray(thsItems) ? thsItems : [];
+        var em = Array.isArray(emItems) ? emItems : [];
+        var hasThs = ths.length > 0;
+        var hasEm = em.length > 0;
+        var wThs = hasThs && hasEm ? 0.5 : hasThs ? 1 : 0;
+        var wEm = hasThs && hasEm ? 0.5 : hasEm ? 1 : 0;
+        var byKey = {};
+        function keyOf(it, idx) { return String((it && (it.code || it.name)) || ('#' + idx)); }
+        function addSource(items, source) {
+            items.forEach(function (it, idx) {
+                if (!it) return;
+                var key = keyOf(it, idx);
+                var rank = toFiniteNumber(it.rank) || (idx + 1);
+                if (!byKey[key]) {
+                    byKey[key] = {
+                        code: it.code || '', name: it.name || it.code || '--',
+                        pct: null, price: null, heat: null, concepts: [], tag: '',
+                        thsRank: null, emRank: null, thsScore: 0, emScore: 0,
+                    };
+                }
+                var row = byKey[key];
+                if (it.name && (row.name === '--' || row.name === row.code)) row.name = it.name;
+                if (row.pct === null && toFiniteNumber(it.pct) !== null) row.pct = it.pct;
+                if (source === 'ths') {
+                    row.thsRank = rank;
+                    row.thsScore = rankScore(items, rank);
+                    if (it.heat !== undefined && it.heat !== null && it.heat !== '') row.heat = it.heat;
+                    if (Array.isArray(it.concepts)) row.concepts = it.concepts;
+                    if (it.tag) row.tag = it.tag;
+                } else {
+                    row.emRank = rank;
+                    row.emScore = rankScore(items, rank);
+                    if (row.price === null && toFiniteNumber(it.price) !== null) row.price = it.price;
+                }
+            });
+        }
+        addSource(ths, 'ths');
+        addSource(em, 'em');
+        var merged = Object.keys(byKey).map(function (key) {
+            var row = byKey[key];
+            row.score = Math.round((wThs * row.thsScore + wEm * row.emScore) * 10) / 10;
+            return row;
+        });
+        merged.sort(function (a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            var ra = (a.thsRank || 999) + (a.emRank || 999);
+            var rb = (b.thsRank || 999) + (b.emRank || 999);
+            return ra - rb;
+        });
+        var top = merged.slice(0, HOT_RANK_LIMIT);
+        top.forEach(function (row, idx) { row.rank = idx + 1; });
+        return { items: top, hasThs: hasThs, hasEm: hasEm, totalMerged: merged.length };
+    }
+
+    async function fetchHotRankSource(source, force) {
         var todayKey = utils.getShanghaiDateKey();
         var cacheKey = hotRankCacheKey(source);
         var cached = cache.readDailyDataCache(cacheKey);
-        if (!force && cached && cached.date === todayKey && cached.data && Array.isArray(cached.data.items)) {
-            renderHotRank(cached.data.items, source, false);
-            return;
-        }
-        // 首次加载（无当日缓存）先给 loading 占位，避免列表空白无反馈。
         var hasTodayCache = !!(cached && cached.date === todayKey && cached.data && Array.isArray(cached.data.items));
-        if (!hasTodayCache) {
-            var loadingList = document.getElementById(source === 'em' ? 'hot-rank-list-em' : 'hot-rank-list-ths');
-            if (loadingList) loadingList.innerHTML = '<li class="ui-state-host">' + uiState.render('loading', {
-                title: '正在加载热榜',
-                detail: '人气榜单返回后自动更新。',
-            }) + '</li>';
-        }
+        if (!force && hasTodayCache) return { items: cached.data.items, fresh: false };
         try {
-            var res = await window.AppDataClient.fetch('/hot-rank', { source: source, limit: 30 }, requestOptions(force));
+            var res = await window.AppDataClient.fetch('/hot-rank', { source: source, limit: HOT_RANK_LIMIT }, requestOptions(force));
             if (!res.ok) throw new Error('HTTP ' + res.status);
             var result = await res.json();
             if (!result.success || !result.data || !Array.isArray(result.data.items)) throw new Error('数据异常');
             cache.writeDailyDataCache(cacheKey, todayKey, { source: source, items: result.data.items });
-            renderHotRank(result.data.items, source, true, result.meta || null);
+            return { items: result.data.items, fresh: true, meta: result.meta || null };
         } catch (e) {
-            console.error('市场热度获取失败：', e);
-            if (cached && cached.date === todayKey && cached.data && Array.isArray(cached.data.items)) {
-                renderHotRank(cached.data.items, source, false);
-                return;
-            }
-            renderHotRankError(source);
+            console.error('市场热度（' + source + '）获取失败：', e);
+            if (hasTodayCache) return { items: cached.data.items, fresh: false };
+            return { items: [], fresh: false, failed: true };
         }
     }
 
-    function renderHotRank(items, source, fresh, meta) {
-        var listId = source === 'em' ? 'hot-rank-list-em' : 'hot-rank-list-ths';
-        var listEl = document.getElementById(listId);
-        var timeEl = document.getElementById('hot-rank-update-time');
+    async function loadHotRankData(a, b) {
+        // 兼容旧签名 loadHotRankData(source, force)：source 已无意义，布尔参数即 force。
+        var force = typeof a === 'boolean' ? a : !!b;
+        var listEl = document.getElementById('hot-rank-list');
         if (!listEl) return;
-        if (!items.length) {
-            listEl.innerHTML = '<li class="ui-state-host">' + uiState.render('empty', {
-                title: '暂无热榜数据',
-                detail: '当前来源没有返回有效排名。',
+        var hadContent = !!listEl.querySelector('.hot-rank-item');
+        if (!hadContent) {
+            listEl.innerHTML = '<li class="ui-state-host">' + uiState.render('loading', {
+                title: '正在加载热榜', detail: '双榜合并后会在这里更新。',
             }) + '</li>';
-            return;
         }
-        if (timeEl && fresh) {
-            timeEl.textContent = dataStatus.label(meta, '更新 ') + utils.formatShanghaiTime(new Date().toISOString());
-        } else if (timeEl && !fresh) {
-            timeEl.textContent = '缓存数据';
+        var both = await Promise.all([fetchHotRankSource('ths', force), fetchHotRankSource('em', force)]);
+        var merged = mergeHotRankItems(both[0].items, both[1].items);
+        if (!merged.items.length) { renderHotRankError(); return; }
+        renderHotRank(merged, both[0].fresh || both[1].fresh, both[0].meta || both[1].meta);
+    }
+
+    function renderHotRank(merged, fresh, meta) {
+        var listEl = document.getElementById('hot-rank-list');
+        var timeEl = document.getElementById('hot-rank-update-time');
+        if (!listEl || !merged) return;
+        var items = merged.items || [];
+        if (!items.length) { renderHotRankError(); return; }
+        if (timeEl) {
+            var note;
+            if (!merged.hasThs) note = '东财人气榜单源计算（同花顺暂无数据）';
+            else if (!merged.hasEm) note = '同花顺热榜单源计算（东财暂无数据）';
+            else note = '双源合并 · 各 50%';
+            timeEl.textContent = note + ' · ' + (fresh ? dataStatus.label(meta, '更新 ') + utils.formatShanghaiTime(new Date().toISOString()) : '缓存数据');
         }
         listEl.innerHTML = items.map(function (it) {
-            it = it || {};
             var pctStr = formatSignedPercent(it.pct);
             var pctCls = trendClass(it.pct);
-            var rankChg = toFiniteNumber(it.rankChg);
-            var chgArrow = rankChg > 0 ? '↑' + rankChg : rankChg < 0 ? '↓' + Math.abs(rankChg) : '-';
-            var chgCls = trendClass(rankChg);
-            if (source === 'ths') {
-                var concepts = (Array.isArray(it.concepts) ? it.concepts : [])
-                    .map(function (c) { return '<span class="hot-rank-concept">' + utils.escapeHtml(c) + '</span>'; }).join('');
-                var tag = it.tag ? '<span class="hot-rank-tag">' + utils.escapeHtml(it.tag) + '</span>' : '';
-                return '<li class="hot-rank-item">' +
-                    '<span class="hot-rank-rank">' + utils.escapeHtml(it.rank || '--') + '</span>' +
-                    '<span class="hot-rank-stock"><span class="hot-rank-name">' + utils.escapeHtml(it.name || it.code || '--') + '</span><span class="hot-rank-code">' + utils.escapeHtml(it.code || '') + '</span></span>' +
-                    '<span class="hot-rank-pct ' + pctCls + '">' + pctStr + '</span>' +
-                    '<span class="hot-rank-heat">人气 ' + utils.escapeHtml(it.heat || '--') + '</span>' +
-                    '<span class="hot-rank-chg ' + chgCls + '">' + chgArrow + '</span>' +
-                    '<span class="hot-rank-concepts">' + concepts + tag + '</span>' +
-                '</li>';
-            } else {
-                var price = toFiniteNumber(it.price);
-                var priceStr = price === null ? '--' : price.toFixed(2);
-                return '<li class="hot-rank-item">' +
-                    '<span class="hot-rank-rank">' + utils.escapeHtml(it.rank || '--') + '</span>' +
-                    '<span class="hot-rank-stock"><span class="hot-rank-name">' + utils.escapeHtml(it.name || it.code || '--') + '</span><span class="hot-rank-code">' + utils.escapeHtml(it.code || '') + '</span></span>' +
-                    '<span class="hot-rank-price">' + priceStr + '</span>' +
-                    '<span class="hot-rank-pct ' + pctCls + '">' + pctStr + '</span>' +
-                    '<span class="hot-rank-chg ' + chgCls + '">' + chgArrow + '</span>' +
-                '</li>';
-            }
+            var ranks = '同花顺 ' + (it.thsRank ? '#' + it.thsRank : '—') + ' · 东财 ' + (it.emRank ? '#' + it.emRank : '—');
+            var tag = it.tag ? '<span class="hot-rank-tag">' + utils.escapeHtml(it.tag) + '</span>' : '';
+            return '<li class="hot-rank-item">' +
+                '<span class="hot-rank-rank">' + utils.escapeHtml(it.rank || '--') + '</span>' +
+                '<span class="hot-rank-stock"><span class="hot-rank-name">' + utils.escapeHtml(it.name || it.code || '--') + '</span><span class="hot-rank-code">' + utils.escapeHtml(it.code || '') + '</span></span>' +
+                '<span class="hot-rank-pct ' + pctCls + '">' + pctStr + '</span>' +
+                '<span class="hot-rank-score">' + (typeof it.score === 'number' ? it.score.toFixed(1) : '--') + '</span>' +
+                '<span class="hot-rank-sources">' + utils.escapeHtml(ranks) + tag + '</span>' +
+            '</li>';
         }).join('');
     }
 
-    function renderHotRankError(source) {
-        var listId = source === 'em' ? 'hot-rank-list-em' : 'hot-rank-list-ths';
-        var listEl = document.getElementById(listId);
+    function renderHotRankError() {
+        var listEl = document.getElementById('hot-rank-list');
         if (listEl) listEl.innerHTML = '<li class="ui-state-host">' + uiState.render('error', {
             title: '市场热度暂不可用',
-            detail: '请稍后重新加载当前榜单。',
+            detail: '同花顺与东财两个榜单都暂无数据，请稍后重新加载。',
             retryScope: 'signals',
         }) + '</li>';
     }
 
-    function initHotRankTabs() {
-        var saved = getActiveHotRankSource();
-        activateHotRankTab(saved);
-        var tabs = document.querySelectorAll('.hot-rank-tab');
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function () {
-                var source = tab.getAttribute('data-source');
-                activateHotRankTab(source);
-                try { window.AppStorage.setItem(KEYS.HOT_RANK_SOURCE_KEY, source); } catch (e) {}
-                loadHotRankData(source);
-            });
-        });
-        // 启动时不主动拉,等 dashboard tab 切到或 loadAllData 触发
-    }
-
-    function activateHotRankTab(source) {
-        var tab = document.querySelector('.hot-rank-tab[data-source="' + source + '"]');
-        if (!tab) return;
-        var parent = tab.parentElement;
-        parent.querySelectorAll('.hot-rank-tab').forEach(function (t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        var cardBody = tab.closest('.card-body');
-        if (cardBody) {
-            cardBody.querySelectorAll('.hot-rank-panel').forEach(function (p) { p.classList.remove('active'); });
-            var panel = cardBody.querySelector('#hot-rank-panel-' + source);
-            if (panel) panel.classList.add('active');
-        }
-    }
-
-    // ============================================================
-    // 打板情绪 (涨停 / 炸板 / 跌停 / 昨涨停)
-    // ============================================================
-
-    function getActiveLimitUpType() {
-        try {
-            var t = window.AppStorage.getItem(KEYS.LIMIT_UP_TAB_KEY);
-            return KEYS.LIMIT_UP_TYPES.indexOf(t) >= 0 ? t : 'zt';
-        } catch (e) { return 'zt'; }
-    }
-    function setActiveLimitUpType(t) {
-        try { window.AppStorage.setItem(KEYS.LIMIT_UP_TAB_KEY, t); } catch (e) {}
-    }
-
-    function updateLimitUpColumnLabels(type) {
-        var stat = document.getElementById('limit-up-col-stat');
-        var extra = document.getElementById('limit-up-col-extra');
-        var labels = {
-            zt: ['连板', '封单'],
-            zb: ['开板', '振幅'],
-            dt: ['连续', '封单'],
-            yzt: ['昨日连板', '涨速'],
-        };
-        var pair = labels[type] || labels.zt;
-        if (stat) stat.textContent = pair[0];
-        if (extra) extra.textContent = pair[1];
-    }
-
-    async function loadLimitUpData(force) {
-        var list = document.getElementById('limit-up-list');
-        var summary = document.getElementById('limit-up-summary');
-        if (!list || !summary) return;
-        var activeType = getActiveLimitUpType();
-
-        function fmtPct(p) {
-            if (typeof p !== 'number' || !p) return '--';
-            return (p > 0 ? '+' : '') + p.toFixed(2) + '%';
-        }
-        function cls(p) { return p > 0 ? 'positive' : p < 0 ? 'negative' : 'neutral'; }
-
-        function renderRow(type, item) {
-            var pct = item.pct || 0;
-            var pctC = cls(pct);
-            var nameCode = '<div class="limit-up-name-cell">' +
-                '<span class="limit-up-name">' + utils.escapeHtml(item.name || item.code) + '</span>' +
-                '<span class="limit-up-code">' + utils.escapeHtml(item.code) + '</span>' +
-                '</div>';
-            if (type === 'zt') {
-                return '<div class="limit-up-row">' +
-                    nameCode +
-                    '<span class="limit-up-pct ' + pctC + '">' + utils.escapeHtml(fmtPct(pct)) + '</span>' +
-                    '<span class="limit-up-stat">' + utils.escapeHtml(item.ztStat || (item.limitDays + '板')) + '</span>' +
-                    '<span class="limit-up-seal">' + utils.escapeHtml(utils.formatYuan(item.sealFund)) + '</span>' +
-                    '<span class="limit-up-ind">' + utils.escapeHtml(item.industry || '--') + '</span>' +
-                '</div>';
-            }
-            if (type === 'zb') {
-                return '<div class="limit-up-row">' +
-                    nameCode +
-                    '<span class="limit-up-pct ' + pctC + '">' + utils.escapeHtml(fmtPct(pct)) + '</span>' +
-                    '<span class="limit-up-stat">' + utils.escapeHtml(item.ztStat || (item.breakTimes + '次开板')) + '</span>' +
-                    '<span class="limit-up-seal">振幅' + (item.amplitude || 0).toFixed(2) + '%</span>' +
-                    '<span class="limit-up-ind">' + utils.escapeHtml(item.industry || '--') + '</span>' +
-                '</div>';
-            }
-            if (type === 'dt') {
-                return '<div class="limit-up-row">' +
-                    nameCode +
-                    '<span class="limit-up-pct ' + pctC + '">' + utils.escapeHtml(fmtPct(pct)) + '</span>' +
-                    '<span class="limit-up-stat">连续' + (item.dtDays || 0) + '板</span>' +
-                    '<span class="limit-up-seal">封单' + utils.escapeHtml(utils.formatYuan(item.sealFund)) + '</span>' +
-                    '<span class="limit-up-ind">' + utils.escapeHtml(item.industry || '--') + '</span>' +
-                '</div>';
-            }
-            // yzt
-            return '<div class="limit-up-row">' +
-                nameCode +
-                '<span class="limit-up-pct ' + pctC + '">' + utils.escapeHtml(fmtPct(pct)) + '</span>' +
-                '<span class="limit-up-stat">' + utils.escapeHtml(item.ztStat || (item.yLimitDays + '板')) + '</span>' +
-                '<span class="limit-up-seal">涨速' + (item.speed || 0).toFixed(2) + '%</span>' +
-                '<span class="limit-up-ind">' + utils.escapeHtml(item.industry || '--') + '</span>' +
-            '</div>';
-        }
-
-        function renderItems(type, data) {
-            if (!data || !Array.isArray(data.items) || data.items.length === 0) {
-                list.innerHTML = uiState.render('empty', {
-                    title: '暂无' + KEYS.LIMIT_UP_TAB_LABELS[type] + '数据',
-                    detail: '当前交易日没有返回可显示的股票。',
-                });
-                return;
-            }
-            list.innerHTML = data.items.map(function (it) { return renderRow(type, it); }).join('');
-        }
-
-        function renderError(type) {
-            list.innerHTML = uiState.render('error', {
-                title: KEYS.LIMIT_UP_TAB_LABELS[type] + '数据暂不可用',
-                detail: '请稍后重试，缓存可用时仍会优先显示缓存。',
-                retryScope: 'signals',
-            });
-        }
-
-        function renderSummary(s) {
-            if (!s) { summary.innerHTML = ''; return; }
-            // 顶部: 涨停 N | 炸板 N (炸板率 X%) | 跌停 N | 昨涨停晋级率 X% | 最高 N 板 | 连板梯队
-            var ladder = s.ladder || {};
-            var ladderStr = Object.keys(ladder).sort(function (a, b) { return a - b; })
-                .map(function (k) { return k + '板' + ladder[k]; }).join(' / ') || '--';
-            summary.innerHTML =
-                '<div class="limit-up-stat-card">' +
-                    '<div class="limit-up-stat-cell"><span class="limit-up-stat-label">涨停</span><span class="limit-up-stat-val positive">' + s.ztCount + '</span></div>' +
-                    '<div class="limit-up-stat-cell"><span class="limit-up-stat-label">炸板</span><span class="limit-up-stat-val">' + s.zbCount + '<span class="limit-up-stat-sub"> ' + s.breakRate + '%</span></span></div>' +
-                    '<div class="limit-up-stat-cell"><span class="limit-up-stat-label">跌停</span><span class="limit-up-stat-val negative">' + s.dtCount + '</span></div>' +
-                    '<div class="limit-up-stat-cell"><span class="limit-up-stat-label">最高</span><span class="limit-up-stat-val">' + s.maxHeight + '板</span></div>' +
-                '</div>' +
-                '<div class="limit-up-stat-ladder">连板梯队: ' + utils.escapeHtml(ladderStr) +
-                ' · 昨涨停晋级率 ' + s.promoteRate + '%</div>';
-        }
-
-        // 1) summary 永远先拉 (顶部卡片) — 日级持久
-        var todayKey = utils.getShanghaiDateKey();
-        var bypassCache = shouldBypassDailySignalCache(force);
-        var sumKey = KEYS.SHORT_CACHE_KEYS.limitUpSummary;
-        var sumCached = cache.readDailyDataCache(sumKey);
-        if (!bypassCache && sumCached && sumCached.date === todayKey && sumCached.data) {
-            renderSummary(sumCached.data);
-        } else {
-            try {
-                var sumRes = await window.AppDataClient.fetch('/limit-up', { type: 'summary' }, requestOptions(force));
-                var sumJson = await sumRes.json();
-                if (sumJson.success) {
-                    cache.writeDailyDataCache(sumKey, todayKey, sumJson.data);
-                    renderSummary(sumJson.data);
-                } else if (sumCached && sumCached.data) {
-                    renderSummary(sumCached.data);
-                }
-            } catch (e) {
-                console.error('打板情绪 summary 获取失败：', e);
-                if (sumCached && sumCached.data) renderSummary(sumCached.data);
-            }
-        }
-
-        // 2) 当前 active type 拉详情 — 日级持久
-        var typeCacheKey = ({
-            zt:  KEYS.SHORT_CACHE_KEYS.limitUpZt,
-            zb:  KEYS.SHORT_CACHE_KEYS.limitUpZb,
-            dt:  KEYS.SHORT_CACHE_KEYS.limitUpDt,
-            yzt: KEYS.SHORT_CACHE_KEYS.limitUpYzt,
-        })[activeType];
-        var typeCached = cache.readDailyDataCache(typeCacheKey);
-        if (!bypassCache && typeCached && typeCached.date === todayKey && typeCached.data) {
-            renderItems(activeType, typeCached.data);
-        } else {
-            list.innerHTML = uiState.render('loading', {
-                title: '正在加载' + KEYS.LIMIT_UP_TAB_LABELS[activeType] + '数据',
-                detail: '最新列表返回后会在这里更新。',
-            });
-            try {
-                var r = await window.AppDataClient.fetch('/limit-up', { type: activeType, limit: 100 }, requestOptions(force));
-                var j = await r.json();
-                if (j.success) {
-                    cache.writeDailyDataCache(typeCacheKey, todayKey, j.data);
-                    renderItems(activeType, j.data);
-                } else if (typeCached && typeCached.date === todayKey && typeCached.data) {
-                    renderItems(activeType, typeCached.data);
-                } else {
-                    renderError(activeType);
-                }
-            } catch (e) {
-                console.error('打板情绪' + activeType + '获取失败:', e);
-                if (typeCached && typeCached.date === todayKey && typeCached.data) {
-                    renderItems(activeType, typeCached.data);
-                } else {
-                    renderError(activeType);
-                }
-            }
-        }
-        activateLimitUpTab(activeType);
-    }
-
-    function activateLimitUpTab(type) {
-        var tab = document.querySelector('.limit-up-tab[data-type="' + type + '"]');
-        if (!tab) return;
-        updateLimitUpColumnLabels(type);
-        var parent = tab.parentElement;
-        parent.querySelectorAll('.limit-up-tab').forEach(function (t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        var body = tab.closest('.card-body');
-        if (body) {
-            body.querySelectorAll('.limit-up-panel').forEach(function (p) { p.classList.remove('active'); });
-            var panel = body.querySelector('#limit-up-panel-' + type);
-            if (panel) panel.classList.add('active');
-        }
-    }
-
-    function initLimitUpTabs() {
-        var saved = getActiveLimitUpType();
-        activateLimitUpTab(saved);
-        var tabs = document.querySelectorAll('.limit-up-tab');
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function () {
-                var t = tab.getAttribute('data-type');
-                if (!t || KEYS.LIMIT_UP_TYPES.indexOf(t) < 0) return;
-                setActiveLimitUpType(t);
-                // 切换 tab 时按需加载 (cache 命中直接渲染,否则 fetch)
-                loadLimitUpData();
-            });
-        });
-    }
+    // 双榜合并后不再有源切换 Tab，保留空实现兼容 app.js 启动调用。
+    function initHotRankTabs() {}
+    function activateHotRankTab() {}
 
     window.AppSignals = {
         // sector rotation (manual only)
@@ -981,15 +790,10 @@
         getActiveHotRankSource: getActiveHotRankSource,
         hotRankCacheKey: hotRankCacheKey,
         loadHotRankData: loadHotRankData,
+        mergeHotRankItems: mergeHotRankItems,
         renderHotRank: renderHotRank,
         renderHotRankError: renderHotRankError,
         initHotRankTabs: initHotRankTabs,
         activateHotRankTab: activateHotRankTab,
-        // limit up
-        getActiveLimitUpType: getActiveLimitUpType,
-        setActiveLimitUpType: setActiveLimitUpType,
-        loadLimitUpData: loadLimitUpData,
-        activateLimitUpTab: activateLimitUpTab,
-        initLimitUpTabs: initLimitUpTabs,
     };
 })();

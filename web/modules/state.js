@@ -26,11 +26,6 @@
         sector: 'fund_tracker_sector_cache',
         newsJin10: 'fund_tracker_news_jin10_cache',
         newsEastmoney: 'fund_tracker_news_eastmoney_cache',
-        limitUpZt: 'fund_tracker_limit_up_zt_cache',
-        limitUpZb: 'fund_tracker_limit_up_zb_cache',
-        limitUpDt: 'fund_tracker_limit_up_dt_cache',
-        limitUpYzt: 'fund_tracker_limit_up_yzt_cache',
-        limitUpSummary: 'fund_tracker_limit_up_summary_cache',
     };
     var SHORT_CACHE_TTL = {
         index: 30 * 1000,
@@ -64,16 +59,10 @@
     var FIXED_WATCH_TAB_IDS = ['default', 'candidate'];
     var FIXED_WATCH_TAB_NAMES = { default: '持仓股', candidate: '候选股' };
 
-    // ---------- 市场热度 ----------
-    var HOT_RANK_SOURCE_KEY = 'fund_tracker_hot_rank_source';
+    // ---------- 市场热度（同花顺+东财合并榜的双源日缓存） ----------
     var HOT_RANK_CACHE_THS_KEY = 'fund_tracker_hot_rank_ths_cache';
     var HOT_RANK_CACHE_EM_KEY = 'fund_tracker_hot_rank_em_cache';
     var HOT_RANK_TAB_HEADERS = { ths: '同花顺热榜', em: '东财人气榜' };
-
-    // ---------- 打板情绪 (涨停 / 炸板 / 跌停 / 昨涨停) ----------
-    var LIMIT_UP_TYPES = ['zt', 'zb', 'dt', 'yzt'];
-    var LIMIT_UP_TAB_LABELS = { zt: '涨停', zb: '炸板', dt: '跌停', yzt: '昨涨停' };
-    var LIMIT_UP_TAB_KEY = 'fund_tracker_limit_up_tab';
 
     // ---------- 告警 toast ----------
     var ALERT_TOAST_MAX = 5;
@@ -306,13 +295,9 @@
             PREV_KEY: PREV_KEY,
             FIXED_WATCH_TAB_IDS: FIXED_WATCH_TAB_IDS,
             FIXED_WATCH_TAB_NAMES: FIXED_WATCH_TAB_NAMES,
-            HOT_RANK_SOURCE_KEY: HOT_RANK_SOURCE_KEY,
             HOT_RANK_CACHE_THS_KEY: HOT_RANK_CACHE_THS_KEY,
             HOT_RANK_CACHE_EM_KEY: HOT_RANK_CACHE_EM_KEY,
             HOT_RANK_TAB_HEADERS: HOT_RANK_TAB_HEADERS,
-            LIMIT_UP_TYPES: LIMIT_UP_TYPES,
-            LIMIT_UP_TAB_LABELS: LIMIT_UP_TAB_LABELS,
-            LIMIT_UP_TAB_KEY: LIMIT_UP_TAB_KEY,
             ALERT_TOAST_MAX: ALERT_TOAST_MAX,
             ALERT_TOAST_TTL_MS: ALERT_TOAST_TTL_MS,
             STATUS_TOAST_TTL_MS: STATUS_TOAST_TTL_MS,

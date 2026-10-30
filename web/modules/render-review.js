@@ -149,7 +149,8 @@
         (board.ladder || []).forEach(function (row) {
             html += '<div class="review-ladder-row"><span class="review-level">' + row.level + ' 板</span><em>×' + row.count + '</em><div class="review-chips">' +
                 row.stocks.map(function (st) {
-                    return '<span class="review-chip">' + utils.escapeHtml(st.name) + (st.firstSeal ? ' <small>' + utils.escapeHtml(st.firstSeal.slice(0, 5)) + '</small>' : '') + '</span>';
+                    var meta = [st.industry || '', st.firstSeal ? st.firstSeal.slice(0, 5) : ''].filter(Boolean).join(' · ');
+                    return '<span class="review-chip"' + (st.code ? ' title="' + utils.escapeHtml(st.code) + '"' : '') + '>' + utils.escapeHtml(st.name) + (meta ? ' <small>' + utils.escapeHtml(meta) + '</small>' : '') + '</span>';
                 }).join('') + '</div></div>';
         });
         html += '</div></div>';
@@ -187,11 +188,8 @@
                 if (!text) return;
                 html += '<div class="review-section"><strong>' + titles[key] + '</strong><p>' + utils.escapeHtml(text) + '</p></div>';
             });
-            if (report.tomorrow) {
-                html += '<div class="review-tomorrow"><strong>明日预判 · ' + utils.escapeHtml(report.tomorrow.stance) + '</strong><ul>' +
-                    report.tomorrow.conditions.map(function (c) { return '<li>' + utils.escapeHtml(conditionText(c)) + '</li>'; }).join('') +
-                    '</ul><small>次日收盘后按存档自动对账</small></div>';
-            }
+            // 明日预判不在这里重复展示：同一份条件只在下方「明日验证」区出现一次
+            // （待对账时即预判本身，对账后带实际值与结果）。
         } else {
             html += '<p class="review-breadth">该日尚未生成 AI 复盘（交易日 16:05 自动生成）。</p>' +
                 '<button type="button" class="review-generate-btn" data-review-generate="1"' + (view.generating ? ' disabled' : '') + '>' +
@@ -199,9 +197,13 @@
         }
         html += '</div>';
 
-        // 明日验证结果（昨日条件 → 今日对账）
+        // 明日验证（唯一展示预判的地方）：昨日条件 → 今日对账结果 + 今日发出的明日预判（待对账）。
         var results = board.verifyResultForDate || [];
         var pending = board.verifyForDate || [];
+        // 兜底：极少数情况下验证记录未登记（如日历外推失败），用报告自带的预判补上，避免预判凭空消失。
+        if (!pending.length && report && report.tomorrow) {
+            pending = [{ stance: report.tomorrow.stance, conditions: report.tomorrow.conditions, targetDate: '', late: false, fallback: true }];
+        }
         if (results.length || pending.length) {
             html += '<div class="review-block"><h3>明日验证</h3>';
             results.forEach(function (r) {
@@ -215,7 +217,7 @@
                 html += '</div>';
             });
             pending.forEach(function (r) {
-                html += '<div class="review-verify"><div><strong>今日预判 · ' + utils.escapeHtml(r.stance) + '</strong><span>目标日 ' + utils.escapeHtml(r.targetDate) + ' 收盘后自动对账' + (r.late ? ' · 事后生成，不计战绩' : '') + '</span></div><ul>' +
+                html += '<div class="review-verify"><div><strong>明日预判 · ' + utils.escapeHtml(r.stance) + '</strong><span>' + (r.targetDate ? '对 ' + utils.escapeHtml(r.targetDate) + ' 的预判 · 收盘后自动对账' : '下一交易日收盘后自动对账') + (r.late ? ' · 事后生成，不计战绩' : '') + '</span></div><ul>' +
                     r.conditions.map(function (c) { return '<li>' + utils.escapeHtml(conditionText(c)) + '</li>'; }).join('') + '</ul></div>';
             });
             html += '</div>';

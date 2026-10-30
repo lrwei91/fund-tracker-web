@@ -57,7 +57,7 @@ Web 复刻对应关系（建议）：`fetch_data` → 一个 `POST /api/fetch` �
 | `/opportunity-radar` | 机会雷达（内部聚合） | render-signals：`{limit:8}` |
 | `/market-warnings` | 重点监控/严重异动 | watch-render：`{codes}` |
 | `/intraday-screening` | 盘中筛选快照（抓公开报告页） | render-signals：`{}` |
-| `/hot-rank` | 热榜（同花顺/东财） | render-signals：`{source, limit:30}` |
+| `/hot-rank` | 热榜（同花顺/东财） | render-signals 双源各拉一次后前端合并：`{source, limit:30}` |
 | `/fund-flow-120d` | 个股资金流（默认 60 天） | stock-detail：`{codes:code, days:60}` |
 | `/cls-news` | 财联社快讯（备东财） | 后端保留，资讯页已移除入口：`{limit, cursor?}` |
 | `/global-news` | 东财全球快讯（备财联社） | 后端保留，资讯页已移除入口：`{limit, cursor?}` |
@@ -71,7 +71,7 @@ Web 复刻对应关系（建议）：`fetch_data` → 一个 `POST /api/fetch` �
 
 `/market-review`（本地服务，server/review.js；2026-10-31 融合计划第 2 期新增）：基于存档层数据。参数：`{action:"board", date?}` 返回程序看板（summary、历史分位 percentiles、连板天梯 ladder 与断层 ladderGaps、封板质量 sealQuality、近 5 日行业题材轮动 themes、当日 AI 复盘 report、该日相关的验证记录与累计战绩 scoreboard）；`{action:"generate", date}` 生成 AI 五段复盘（情绪/资金/题材/龙虎榜/龙头）并落盘 `DATA_DIR/review/YYYY-MM-DD.json`——生成后正文每个数字与资料包回查（按量级、含舍入容差），对不上的替换为「〔未核实〕」并计数；`{action:"verify"}` 返回验证记录与战绩。明日验证：复盘的 tomorrow.conditions（指标白名单 ztCount/maxHeight/promoteRate/breakRate/yztMedianPct/dtCount）写入 `review/verify.json`，次日存档 complete 后自动对账（全中/部分命中/未中）；目标日 09:15 后生成的标 late 不计战绩。自动生成：交易日 16:05 后、存档就绪时触发（失败退避每日 ≤3 次）。前端入口为新增「复盘」分页；board 另带 snapshots 字段（六时点情绪快照，见 /intraday）。
 
-`/intraday`（本地服务，server/intraday.js；2026-10-31 融合计划第 3 期新增）：参数：`{action:"ladder"}` 返回昨日梯队今日实时表现（基准日 = 最近存档日；按板位分组，含每组再涨停数/红盘率/平均涨幅与个股现价、涨跌幅、状态——涨停判定按板块涨幅上限：主板 10%、创业板/科创板 20%、北交所 30%、ST 5%）；`{action:"anomalies", date?}` 返回异动事件流（服务端 30 秒 tick 对监控集合——自选/持仓 + 昨日梯队、上限 240 只——做报价差分：约 3 分钟涨跌幅 ≥1.5% 记急拉/急跌，最新价触及涨停价记封板、离开 1% 记开板，同股同类 5 分钟去重；报价无盘中最高价，两次轮询间一触即开可能漏检）；`{action:"snapshots", date?}` 返回六时点（09:25/09:35/10:00/11:30/14:00/15:00）情绪快照（盘中池计数沿用打板接口 100 条口径），落盘 `DATA_DIR/intraday/`。前端入口为市场页「昨日梯队」「盘中异动」两个观察视图（可见时 30 秒刷新）。
+`/intraday`（本地服务，server/intraday.js；2026-10-31 融合计划第 3 期新增）：参数：`{action:"ladder"}` 返回昨日梯队今日实时表现（基准日 = 最近存档日；按板位分组，含每组再涨停数/红盘率/平均涨幅与个股现价、涨跌幅、状态——涨停判定按板块涨幅上限：主板 10%、创业板/科创板 20%、北交所 30%、ST 5%）；`{action:"anomalies", date?}` 返回异动事件流（服务端 30 秒 tick 对监控集合——自选/持仓 + 昨日梯队、上限 240 只——做报价差分：约 3 分钟涨跌幅 ≥1.5% 记急拉/急跌，最新价触及涨停价记封板、离开 1% 记开板，同股同类 5 分钟去重；报价无盘中最高价，两次轮询间一触即开可能漏检）；`{action:"snapshots", date?}` 返回六时点（09:25/09:35/10:00/11:30/14:00/15:00）情绪快照（盘中池计数沿用打板接口 100 条口径），落盘 `DATA_DIR/intraday/`。前端入口为市场页「盘中异动」观察视图（可见时 30 秒刷新）；`ladder` 接口保留（昨日梯队视图已移除，与复盘页连板天梯重复）。市场热度合并口径（前端 render-signals.mergeHotRankItems）：每榜名次折分 (N-rank+1)/N×100，两榜各占 50%，只在一榜上榜的股票另一榜记 0 分，整源无数据时权重归一到有数据的源，合并后取前 30 并保留双榜名次。
 
 ### 1.4 全局数值速览（细节见第二章 §21）
 

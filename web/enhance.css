@@ -137,6 +137,19 @@
   .electron-app .market-observation .sector-rotation-detail > div:nth-child(-n + 2) { border-top: none; }
 }
 
+/* ============ 市场热度合并榜（同花顺 × 东财各 50%） ============ */
+.electron-app .hot-rank-note { margin: 2px 0 10px; color: var(--text-tertiary); font-size: 11px; line-height: 1.6; }
+.electron-app .hot-rank-panel--merged .hot-rank-table-head,
+.electron-app .hot-rank-panel--merged .hot-rank-item { grid-template-columns: 28px minmax(0, 1fr) 64px 52px minmax(120px, auto); }
+.electron-app .hot-rank-score { color: var(--text-primary); font-weight: 700; text-align: right; white-space: nowrap; }
+.electron-app .hot-rank-sources { color: var(--text-tertiary); font-size: 11px; text-align: right; white-space: nowrap; }
+.electron-app .hot-rank-sources .hot-rank-tag { margin-left: 6px; }
+@media (max-width: 640px) {
+  .electron-app .hot-rank-panel--merged .hot-rank-table-head,
+  .electron-app .hot-rank-panel--merged .hot-rank-item { grid-template-columns: 24px minmax(0, 1fr) 58px 44px minmax(96px, auto); }
+  .electron-app .hot-rank-sources { font-size: 10px; }
+}
+
 /* ============ 产业链资讯（融合 investment-news） ============ */
 /* 赛道子 Tab：原快讯源 Tab 的位置，现为 全部 + 12 赛道，可换行、带条数徽标与赛道色点 */
 .electron-app .industry-sector-tabs { flex-wrap: wrap; row-gap: 2px; }

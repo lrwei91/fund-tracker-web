@@ -117,13 +117,8 @@
                     return window.AppSignals ? window.AppSignals.loadOpportunityRadarData(!!options.force) : null;
                 } });
             }
-            if (!options.skipLimitUp) {
-                tasks.push({ name: '打板情绪', priority: 45, run: function () {
-                    return window.AppSignals ? window.AppSignals.loadLimitUpData(!!options.force) : null;
-                } });
-            }
             tasks.push({ name: '市场热度', priority: 70, run: function () {
-                return window.AppSignals ? window.AppSignals.loadHotRankData(window.AppSignals.getActiveHotRankSource(), !!options.force) : null;
+                return window.AppSignals ? window.AppSignals.loadHotRankData(!!options.force) : null;
             } });
         }
         if (kind === 'research') tasks.push({ name: '机会雷达', priority: 80, run: function () { return window.AppSignals ? window.AppSignals.loadOpportunityRadarData(!!options.force) : null; } });
@@ -348,7 +343,7 @@
         if (tab === 'research') return requestAfterCurrent('research', {});
         if (tab === 'market') return requestAfterCurrent('all', { skipOpportunity: true });
         if (tab === 'alerts') return Promise.resolve();
-        if (tab === 'signals') return request('signals', { skipLimitUp: false });
+        if (tab === 'signals') return request('signals', {});
         if (tab === 'news') return requestAfterCurrent('news', {});
         return requestAfterCurrent('main', {});
     }

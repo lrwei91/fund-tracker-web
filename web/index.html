@@ -286,7 +286,7 @@
                     </div>
                 </div>
             </div>
-        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="limit">打板情绪</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="ladder">昨日梯队</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="anomaly">盘中异动</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
+        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="anomaly">盘中异动</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
             <div class="card-header sector-rotation-header">
                 <div class="sector-rotation-heading">
                     <h2>轮动板块</h2>
@@ -304,64 +304,19 @@
                 <span class="hot-rank-header-time" id="hot-rank-update-time"></span>
             </div>
             <div class="card-body">
-                <div class="hot-rank-tabs">
-                    <button class="hot-rank-tab active" data-source="ths">同花顺热榜</button>
-                    <button class="hot-rank-tab" data-source="em">东财人气榜</button>
-                </div>
-                <div class="hot-rank-panel active" id="hot-rank-panel-ths">
+                <p class="hot-rank-note">同花顺热榜 × 东财人气榜合并：按各自名次折算分数，各占 50%；只在一榜上榜的股票另一榜记 0 分；某个数据源无数据时，权重自动归一到有数据的源。</p>
+                <div class="hot-rank-panel active hot-rank-panel--merged">
                     <div class="hot-rank-table-head" role="row">
                         <span role="columnheader">排名</span>
                         <span role="columnheader">股票</span>
                         <span role="columnheader">涨跌幅</span>
-                        <span role="columnheader">热度</span>
-                        <span role="columnheader">变化</span>
+                        <span role="columnheader">综合分</span>
+                        <span role="columnheader">双榜名次</span>
                     </div>
-                    <ul class="hot-rank-list" id="hot-rank-list-ths">
-                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">保留当前结构，等待最新排名。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
+                    <ul class="hot-rank-list" id="hot-rank-list">
+                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">双榜合并后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
                     </ul>
                 </div>
-                <div class="hot-rank-panel" id="hot-rank-panel-em">
-                    <div class="hot-rank-table-head" role="row">
-                        <span role="columnheader">排名</span>
-                        <span role="columnheader">股票</span>
-                        <span role="columnheader">价格</span>
-                        <span role="columnheader">涨跌幅</span>
-                        <span role="columnheader">变化</span>
-                    </div>
-                    <ul class="hot-rank-list" id="hot-rank-list-em">
-                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">保留当前结构，等待最新排名。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
-                    </ul>
-                </div>
-            </div>
-        </section><section class="card limit-up-section signal-workspace-panel" data-signal-panel="limit" hidden>
-            <div class="card-header">
-                <h2>打板情绪</h2>
-            </div>
-            <div class="card-body">
-                <div class="limit-up-summary" id="limit-up-summary"></div>
-                <div class="limit-up-tabs">
-                    <button class="limit-up-tab active" data-type="zt">涨停</button>
-                    <button class="limit-up-tab" data-type="zb">炸板</button>
-                    <button class="limit-up-tab" data-type="dt">跌停</button>
-                    <button class="limit-up-tab" data-type="yzt">昨涨停</button>
-                </div>
-                <div class="limit-up-table-head" role="row">
-                    <span role="columnheader">股票</span>
-                    <span role="columnheader">涨跌幅</span>
-                    <span role="columnheader" id="limit-up-col-stat">连板</span>
-                    <span role="columnheader" id="limit-up-col-extra">封单</span>
-                    <span role="columnheader">行业</span>
-                </div>
-                <div class="limit-up-list" id="limit-up-list">
-                    <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载打板数据</strong><span class="ui-state-detail">列表返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>
-                </div>
-            </div>
-        </section><section class="card ladder-watch-section signal-workspace-panel" data-signal-panel="ladder" hidden>
-            <div class="card-header">
-                <h2>昨日梯队</h2>
-            </div>
-            <div class="card-body" id="ladder-watch-root">
-                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载梯队数据</strong><span class="ui-state-detail">昨日涨停梯队的实时表现返回后会在这里更新。</span></div>
             </div>
         </section><section class="card anomaly-section signal-workspace-panel" data-signal-panel="anomaly" hidden>
             <div class="card-header">

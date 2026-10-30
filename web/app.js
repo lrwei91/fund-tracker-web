@@ -566,7 +566,6 @@
         bindEvents();
         initUiStateRetries();
         if (window.AppWatchlist) window.AppWatchlist.initStockFundFlowModal();
-        if (window.AppSignals) window.AppSignals.initLimitUpTabs();
         initAutoRefresh();
         if (window.AppWatchlist) window.AppWatchlist.renderCustomIndex();
         // 页面初始化:先渲染本地缓存,再复用手动刷新入口请求一次最新数据。

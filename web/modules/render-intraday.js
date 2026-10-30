@@ -1,8 +1,8 @@
-// 盘中盯盘增强：昨日梯队（昨日涨停梯队今日实时表现）+ 盘中异动流。
+// 盘中盯盘增强：盘中异动流（昨日梯队视图已移除，其数据与复盘页连板天梯重复；
+// 服务端仍以昨日梯队为异动监控集合之一，监控逻辑不受影响）。
 // 数据来自服务端 /intraday；面板可见时每 30 秒刷新，隐藏时不请求。
 (function () {
     var utils = window.AppUtils;
-    var ladderView = { data: null, loading: false, error: false, loadedAt: 0 };
     var anomalyView = { data: null, loading: false, error: false, loadedAt: 0 };
 
     async function fetchIntraday(action) {
@@ -27,34 +27,6 @@
         if (status === '红盘') return ' is-up';
         if (status === '绿盘') return ' is-down';
         return '';
-    }
-
-    function renderLadder() {
-        var root = document.getElementById('ladder-watch-root');
-        if (!root) return;
-        var d = ladderView.data;
-        if (!d) {
-            if (!ladderView.loading) {
-                root.innerHTML = '<p class="intraday-note">' + (ladderView.error ? '梯队数据暂不可用，稍后自动重试。' : '暂无数据。') + '</p>';
-            }
-            return;
-        }
-        var s = d.summary || {};
-        var html = '<p class="intraday-note">基准日 ' + utils.escapeHtml(d.baseDate || '') + ' 的涨停梯队（' + d.total + ' 只，已取行情 ' + d.quoted + ' 只）' +
-            ' · 今日再涨停 ' + (s.limitUp ?? 0) + ' 只 · 红盘率 ' + (s.upRate ?? '—') + '% · 平均 ' + pctText(s.avgPct) + ' · 跌停 ' + (s.downLimit ?? 0) + ' 只</p>';
-        (d.groups || []).forEach(function (g) {
-            html += '<div class="intraday-group"><div class="intraday-group-head"><strong>' + g.level + ' 板</strong><span>' + g.count + ' 只 · 再涨停 ' + g.limitUp + ' · 红盘率 ' + (g.upRate ?? '—') + '% · 平均 ' + pctText(g.avgPct) + '</span></div>';
-            html += '<div class="intraday-rows">';
-            (g.stocks || []).forEach(function (r) {
-                html += '<div class="intraday-row"><span class="intraday-name">' + utils.escapeHtml(r.name || '') + ' <small>' + utils.escapeHtml(r.code || '') + '</small></span>' +
-                    '<span class="intraday-ind">' + utils.escapeHtml(r.industry || '') + '</span>' +
-                    '<span class="intraday-price">' + (r.price !== null && r.price !== undefined ? Number(r.price).toFixed(2) : '—') + '</span>' +
-                    '<span class="intraday-pct' + pctClass(r.pct) + '">' + pctText(r.pct) + '</span>' +
-                    '<span class="intraday-status' + statusClass(r.status) + '">' + utils.escapeHtml(r.status || '') + '</span></div>';
-            });
-            html += '</div></div>';
-        });
-        root.innerHTML = html;
     }
 
     function renderAnomalies() {
@@ -86,22 +58,6 @@
         root.innerHTML = html;
     }
 
-    async function refreshLadder() {
-        if (ladderView.loading) return;
-        ladderView.loading = true;
-        try {
-            ladderView.data = await fetchIntraday('ladder');
-            ladderView.error = false;
-            ladderView.loadedAt = Date.now();
-        } catch (error) {
-            console.error('昨日梯队加载失败:', error);
-            ladderView.error = true;
-        } finally {
-            ladderView.loading = false;
-            renderLadder();
-        }
-    }
-
     async function refreshAnomalies() {
         if (anomalyView.loading) return;
         anomalyView.loading = true;
@@ -125,9 +81,9 @@
 
     // 面板被切到时立即加载；可见期间每 5 秒检查、数据超过 25 秒就刷新。
     setInterval(function () {
-        if (panelVisible('ladder') && Date.now() - ladderView.loadedAt > 25000) refreshLadder();
         if (panelVisible('anomaly') && Date.now() - anomalyView.loadedAt > 25000) refreshAnomalies();
     }, 5000);
 
-    window.AppIntraday = { refreshLadder: refreshLadder, refreshAnomalies: refreshAnomalies };
+    // refreshLadder 保留为空实现：昨日梯队视图已移除，避免旧调用方报错。
+    window.AppIntraday = { refreshLadder: async function () {}, refreshAnomalies: refreshAnomalies };
 })();
