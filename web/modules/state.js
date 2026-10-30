@@ -59,10 +59,9 @@
     var FIXED_WATCH_TAB_IDS = ['default', 'candidate'];
     var FIXED_WATCH_TAB_NAMES = { default: '持仓股', candidate: '候选股' };
 
-    // ---------- 市场热度（同花顺+东财合并榜的双源日缓存） ----------
+    // ---------- 市场热度（合并榜的日缓存） ----------
     var HOT_RANK_CACHE_THS_KEY = 'fund_tracker_hot_rank_ths_cache';
     var HOT_RANK_CACHE_EM_KEY = 'fund_tracker_hot_rank_em_cache';
-    var HOT_RANK_TAB_HEADERS = { ths: '同花顺热榜', em: '东财人气榜' };
 
     // ---------- 告警 toast ----------
     var ALERT_TOAST_MAX = 5;
@@ -297,7 +296,6 @@
             FIXED_WATCH_TAB_NAMES: FIXED_WATCH_TAB_NAMES,
             HOT_RANK_CACHE_THS_KEY: HOT_RANK_CACHE_THS_KEY,
             HOT_RANK_CACHE_EM_KEY: HOT_RANK_CACHE_EM_KEY,
-            HOT_RANK_TAB_HEADERS: HOT_RANK_TAB_HEADERS,
             ALERT_TOAST_MAX: ALERT_TOAST_MAX,
             ALERT_TOAST_TTL_MS: ALERT_TOAST_TTL_MS,
             STATUS_TOAST_TTL_MS: STATUS_TOAST_TTL_MS,

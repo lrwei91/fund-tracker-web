@@ -137,16 +137,19 @@
   .electron-app .market-observation .sector-rotation-detail > div:nth-child(-n + 2) { border-top: none; }
 }
 
-/* ============ 市场热度合并榜（同花顺 × 东财各 50%） ============ */
-.electron-app .hot-rank-note { margin: 2px 0 10px; color: var(--text-tertiary); font-size: 11px; line-height: 1.6; }
+/* ============ 盯盘页左栏堆叠（盘中异动 / 持仓与自选 / 自选指数） ============ */
+.electron-app .watch-list-pane { display: flex; flex-direction: column; gap: 16px; }
+
+/* ============ 市场热度合并榜 ============ */
+/* 列间距拉开：排名 36 / 股票 1fr / 涨跌幅 88 / 综合分 76 / 名次 132，列间 18px，行内左右留白 */
 .electron-app .hot-rank-panel--merged .hot-rank-table-head,
-.electron-app .hot-rank-panel--merged .hot-rank-item { grid-template-columns: 28px minmax(0, 1fr) 64px 52px minmax(120px, auto); }
+.electron-app .hot-rank-panel--merged .hot-rank-item { grid-template-columns: 36px minmax(0, 1fr) 88px 76px 132px; gap: 18px; padding-left: 6px; padding-right: 6px; }
+.electron-app .hot-rank-panel--merged .hot-rank-item { min-height: 54px; }
 .electron-app .hot-rank-score { color: var(--text-primary); font-weight: 700; text-align: right; white-space: nowrap; }
-.electron-app .hot-rank-sources { color: var(--text-tertiary); font-size: 11px; text-align: right; white-space: nowrap; }
-.electron-app .hot-rank-sources .hot-rank-tag { margin-left: 6px; }
+.electron-app .hot-rank-sources { color: var(--text-tertiary); font-size: 11px; text-align: right; white-space: nowrap; letter-spacing: .02em; }
 @media (max-width: 640px) {
   .electron-app .hot-rank-panel--merged .hot-rank-table-head,
-  .electron-app .hot-rank-panel--merged .hot-rank-item { grid-template-columns: 24px minmax(0, 1fr) 58px 44px minmax(96px, auto); }
+  .electron-app .hot-rank-panel--merged .hot-rank-item { grid-template-columns: 26px minmax(0, 1fr) 72px 58px 104px; gap: 10px; padding-left: 2px; padding-right: 2px; }
   .electron-app .hot-rank-sources { font-size: 10px; }
 }
 

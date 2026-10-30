@@ -1,6 +1,6 @@
-// 盘中盯盘增强：盘中异动流（昨日梯队视图已移除，其数据与复盘页连板天梯重复；
-// 服务端仍以昨日梯队为异动监控集合之一，监控逻辑不受影响）。
-// 数据来自服务端 /intraday；面板可见时每 30 秒刷新，隐藏时不请求。
+// 盘中盯盘增强：盘中异动流（已移入盯盘页、位于持仓与自选上方；昨日梯队视图已移除，
+// 其数据与复盘页连板天梯重复；服务端仍以昨日梯队为异动监控集合之一，监控逻辑不受影响）。
+// 数据来自服务端 /intraday；盯盘页可见时每 30 秒刷新，不在盯盘页时不请求。
 (function () {
     var utils = window.AppUtils;
     var anomalyView = { data: null, loading: false, error: false, loadedAt: 0 };
@@ -74,14 +74,16 @@
         }
     }
 
-    function panelVisible(name) {
-        var panel = document.querySelector('[data-signal-panel="' + name + '"]');
-        return !!panel && !panel.hidden;
+    function dashboardVisible() {
+        // 异动卡已移入盯盘页：以盯盘页是否为当前页为准（tab-panel 的 active 类）。
+        var panel = document.getElementById('tab-dashboard');
+        if (panel) return panel.classList.contains('active');
+        return !!(window.AppState && window.AppState.currentTab === 'dashboard');
     }
 
-    // 面板被切到时立即加载；可见期间每 5 秒检查、数据超过 25 秒就刷新。
+    // 在盯盘页时立即加载；可见期间每 5 秒检查、数据超过 25 秒就刷新。
     setInterval(function () {
-        if (panelVisible('anomaly') && Date.now() - anomalyView.loadedAt > 25000) refreshAnomalies();
+        if (dashboardVisible() && Date.now() - anomalyView.loadedAt > 25000) refreshAnomalies();
     }, 5000);
 
     // refreshLadder 保留为空实现：昨日梯队视图已移除，避免旧调用方报错。

@@ -1,5 +1,5 @@
 // ================================================================
-// 市场信号 — 机会雷达 / 市场热度（同花顺+东财合并榜）
+// 市场信号 — 机会雷达 / 市场热度（合并榜）
 // 暴露到 window.AppSignals;
 // 直接 script 引入,无需 import/require
 // 依赖:window.AppState, window.AppUtils, window.AppCache
@@ -621,11 +621,11 @@
     }
 
     // ============================================================
-    // 市场热度（同花顺热榜 + 东财人气榜合并榜）
-    // 合并口径：每榜按名次折算分数 score = (N - rank + 1) / N * 100（N 为该榜条数）；
-    // 两榜都有数据时各占 50%；只在一榜上榜的股票，另一榜记 0 分；
-    // 某个数据源整体无数据时，权重自动归一（有数据的源占 100%）。
-    // 合并后按综合分排序取前 30，并保留双榜原始名次供核对。
+    // 市场热度（合并榜，页面上作为单一数据源呈现，不标注组成）
+    // 合并口径：每个源按名次折算分数 score = (N - rank + 1) / N * 100（N 为该源条数）；
+    // 两源都有数据时各占 50%；只在一个源上榜的股票，另一源记 0 分；
+    // 某个源整体无数据时，权重自动归一（有数据的源占 100%）。
+    // 合并后按综合分排序取前 30，「名次」列保留两个源的原始名次（不标来源）。
     // ============================================================
 
     var HOT_RANK_LIMIT = 30;
@@ -725,7 +725,7 @@
         var hadContent = !!listEl.querySelector('.hot-rank-item');
         if (!hadContent) {
             listEl.innerHTML = '<li class="ui-state-host">' + uiState.render('loading', {
-                title: '正在加载热榜', detail: '双榜合并后会在这里更新。',
+                title: '正在加载热榜', detail: '热榜返回后会在这里更新。',
             }) + '</li>';
         }
         var both = await Promise.all([fetchHotRankSource('ths', force), fetchHotRankSource('em', force)]);
@@ -741,23 +741,18 @@
         var items = merged.items || [];
         if (!items.length) { renderHotRankError(); return; }
         if (timeEl) {
-            var note;
-            if (!merged.hasThs) note = '东财人气榜单源计算（同花顺暂无数据）';
-            else if (!merged.hasEm) note = '同花顺热榜单源计算（东财暂无数据）';
-            else note = '双源合并 · 各 50%';
-            timeEl.textContent = note + ' · ' + (fresh ? dataStatus.label(meta, '更新 ') + utils.formatShanghaiTime(new Date().toISOString()) : '缓存数据');
+            timeEl.textContent = fresh ? dataStatus.label(meta, '更新 ') + utils.formatShanghaiTime(new Date().toISOString()) : '缓存数据';
         }
         listEl.innerHTML = items.map(function (it) {
             var pctStr = formatSignedPercent(it.pct);
             var pctCls = trendClass(it.pct);
-            var ranks = '同花顺 ' + (it.thsRank ? '#' + it.thsRank : '—') + ' · 东财 ' + (it.emRank ? '#' + it.emRank : '—');
-            var tag = it.tag ? '<span class="hot-rank-tag">' + utils.escapeHtml(it.tag) + '</span>' : '';
+            var ranks = [it.thsRank ? '#' + it.thsRank : null, it.emRank ? '#' + it.emRank : null].filter(Boolean).join(' · ') || '—';
             return '<li class="hot-rank-item">' +
                 '<span class="hot-rank-rank">' + utils.escapeHtml(it.rank || '--') + '</span>' +
                 '<span class="hot-rank-stock"><span class="hot-rank-name">' + utils.escapeHtml(it.name || it.code || '--') + '</span><span class="hot-rank-code">' + utils.escapeHtml(it.code || '') + '</span></span>' +
                 '<span class="hot-rank-pct ' + pctCls + '">' + pctStr + '</span>' +
                 '<span class="hot-rank-score">' + (typeof it.score === 'number' ? it.score.toFixed(1) : '--') + '</span>' +
-                '<span class="hot-rank-sources">' + utils.escapeHtml(ranks) + tag + '</span>' +
+                '<span class="hot-rank-sources">' + utils.escapeHtml(ranks) + '</span>' +
             '</li>';
         }).join('');
     }
@@ -766,12 +761,12 @@
         var listEl = document.getElementById('hot-rank-list');
         if (listEl) listEl.innerHTML = '<li class="ui-state-host">' + uiState.render('error', {
             title: '市场热度暂不可用',
-            detail: '同花顺与东财两个榜单都暂无数据，请稍后重新加载。',
+            detail: '市场热度暂无数据，请稍后重新加载。',
             retryScope: 'signals',
         }) + '</li>';
     }
 
-    // 双榜合并后不再有源切换 Tab，保留空实现兼容 app.js 启动调用。
+    // 合并后不再有源切换 Tab，保留空实现兼容 app.js 启动调用。
     function initHotRankTabs() {}
     function activateHotRankTab() {}
 

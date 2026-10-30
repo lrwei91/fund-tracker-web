@@ -71,7 +71,14 @@
 <div class="tab-panel active" id="tab-dashboard">
 <div class="workspace-heading"><div><p class="eyebrow">MY WORKSPACE</p><h2>把注意力留给持仓</h2></div><button type="button" class="workspace-link" data-navigate="research">查看研究报告 ↗</button></div>
 <section class="portfolio-summary" id="portfolio-summary" aria-label="本机持仓统计" aria-live="polite"></section>
-<div class="watch-workspace"><div class="watch-list-pane"><section class="card watchlist-section" data-collapsible="false">
+<div class="watch-workspace"><div class="watch-list-pane"><section class="card anomaly-section">
+            <div class="card-header">
+                <h2>盘中异动</h2>
+            </div>
+            <div class="card-body" id="anomaly-root">
+                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载异动流</strong><span class="ui-state-detail">监控自选/持仓与昨日梯队的急拉急跌、封板与开板。</span></div>
+            </div>
+        </section><section class="card watchlist-section" data-collapsible="false">
             <div class="card-header">
                 <h2>持仓与自选</h2>
                 <span class="watchlist-header-time" id="watchlist-update-time"></span>
@@ -97,6 +104,20 @@
                 <div class="watchlist-grid" id="watchlist-grid">
                     <div class="ui-state ui-state--empty" data-ui-state="empty" role="status"><strong class="ui-state-title">暂无自选股</strong><span class="ui-state-detail">通过上方输入框添加代码或股票名称。</span></div>
                 </div>
+            </div>
+        </section><section class="card custom-index-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>自选指数</h2>
+                <span class="custom-index-header-time" id="custom-index-update-time"></span>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-body">
+                <form class="custom-index-add-form" id="custom-index-add-form" hidden>
+                    <input type="text" id="custom-index-input" autocomplete="off" placeholder="输入指数 / ETF / 板块代码或名称" aria-label="指数或 ETF 代码/名称">
+                    <button type="submit">添加</button>
+                    <button type="button" class="secondary" id="custom-index-add-cancel">取消</button>
+                </form>
+                <div class="index-grid" id="custom-index-grid"></div>
             </div>
         </section></div><aside class="detail-dock" id="stock-detail-dock" aria-label="标的详情"><div class="detail-placeholder" id="detail-placeholder"><span class="eyebrow">STOCK DETAIL</span><h3>从列表选择一个标的</h3><p>行情、研究与提醒，在同一处查看。</p></div><div class="modal-panel" id="stock-fund-panel" role="region" aria-labelledby="stock-fund-title" hidden>
     <div class="modal-header">
@@ -165,20 +186,6 @@
                         <div class="index-change" id="beizheng50-change">--</div>
                     </div>
                 </div>
-            </div>
-        </section><section class="card custom-index-section" data-collapsible="true">
-            <div class="card-header" role="button" tabindex="0">
-                <h2>自选指数</h2>
-                <span class="custom-index-header-time" id="custom-index-update-time"></span>
-                <span class="collapse-icon">▼</span>
-            </div>
-            <div class="card-body">
-                <form class="custom-index-add-form" id="custom-index-add-form" hidden>
-                    <input type="text" id="custom-index-input" autocomplete="off" placeholder="输入指数 / ETF / 板块代码或名称" aria-label="指数或 ETF 代码/名称">
-                    <button type="submit">添加</button>
-                    <button type="button" class="secondary" id="custom-index-add-cancel">取消</button>
-                </form>
-                <div class="index-grid" id="custom-index-grid"></div>
             </div>
         </section><section class="card market-breadth-section" data-collapsible="true">
             <div class="card-header" role="button" tabindex="0">
@@ -286,7 +293,7 @@
                     </div>
                 </div>
             </div>
-        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="anomaly">盘中异动</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
+        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
             <div class="card-header sector-rotation-header">
                 <div class="sector-rotation-heading">
                     <h2>轮动板块</h2>
@@ -304,26 +311,18 @@
                 <span class="hot-rank-header-time" id="hot-rank-update-time"></span>
             </div>
             <div class="card-body">
-                <p class="hot-rank-note">同花顺热榜 × 东财人气榜合并：按各自名次折算分数，各占 50%；只在一榜上榜的股票另一榜记 0 分；某个数据源无数据时，权重自动归一到有数据的源。</p>
                 <div class="hot-rank-panel active hot-rank-panel--merged">
                     <div class="hot-rank-table-head" role="row">
                         <span role="columnheader">排名</span>
                         <span role="columnheader">股票</span>
                         <span role="columnheader">涨跌幅</span>
                         <span role="columnheader">综合分</span>
-                        <span role="columnheader">双榜名次</span>
+                        <span role="columnheader">名次</span>
                     </div>
                     <ul class="hot-rank-list" id="hot-rank-list">
-                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">双榜合并后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
+                        <li class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载热榜</strong><span class="ui-state-detail">热榜返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></li>
                     </ul>
                 </div>
-            </div>
-        </section><section class="card anomaly-section signal-workspace-panel" data-signal-panel="anomaly" hidden>
-            <div class="card-header">
-                <h2>盘中异动</h2>
-            </div>
-            <div class="card-body" id="anomaly-root">
-                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载异动流</strong><span class="ui-state-detail">监控自选/持仓与昨日梯队的急拉急跌、封板与开板。</span></div>
             </div>
         </section></section></div>
 <div class="tab-panel" id="tab-review"><div class="workspace-heading"><div><p class="eyebrow">DAILY REVIEW</p><h2>收盘之后，把今天看清楚</h2></div></div><section class="card review-section">
