@@ -54,7 +54,6 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
 .electron-app .portfolio-action:hover { background: var(--color-accent-soft); }
 .electron-app .watch-workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; align-items: start; }
 .electron-app .watch-list-pane, .electron-app .detail-dock { min-width: 0; }
-.electron-app .detail-dock { display: none; }
 .electron-app .card { border-radius: 0; box-shadow: none; border: 0; border-top: 2px solid var(--text-primary); background: transparent; }
 .electron-app .card-header { padding: 14px var(--content-inset); flex-wrap: wrap; row-gap: 8px; }
 .electron-app .card > .card-body { padding: 16px var(--content-inset); }
@@ -114,14 +113,7 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
 .electron-app .research-toolbar { flex-wrap: wrap; }
 @media (min-width: 1100px) {
     .electron-app .watch-workspace { grid-template-columns: minmax(340px, 1fr) minmax(340px, .9fr); gap: 24px; }
-    .electron-app .detail-dock { display: block; position: sticky; top: 0; min-height: 410px; border-left: 1px solid var(--border); padding-left: 22px; }
-    .electron-app .detail-placeholder { display: grid; align-content: center; min-height: 410px; gap: 12px; color: var(--text-tertiary); }
-    .electron-app .detail-placeholder h3 { color: var(--text-primary); font-size: 16px; font-weight: 600; }
-    .electron-app .detail-placeholder p { font-size: 12px; line-height: 1.8; }
-    .electron-app .detail-dock #stock-fund-panel { display: flex; flex-direction: column; position: static; inset: auto; transform: none; width: 100%; height: auto; max-height: calc(100dvh - 112px); border: 0; border-radius: 0; box-shadow: none; background: transparent; }
-    .electron-app .detail-dock .modal-header { padding: 12px; min-height: 50px; flex-shrink: 0; }
-    .electron-app .detail-dock .modal-header h3 { font-size: 14px; }
-    .electron-app .detail-dock .modal-body { padding: 0 12px 12px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+    .electron-app .detail-dock { display: block; position: sticky; top: 0; border-left: 1px solid var(--border); padding-left: 22px; }
     .electron-app .watchlist-header-spark, .electron-app .watchlist-stock-sparkline { display: none; }
 }
 @media (min-width: 1400px) {

@@ -71,12 +71,19 @@
 <div class="tab-panel active" id="tab-dashboard">
 <div class="workspace-heading"><div><p class="eyebrow">MY WORKSPACE</p><h2>把注意力留给持仓</h2></div><button type="button" class="workspace-link" data-navigate="research">查看研究报告 ↗</button></div>
 <section class="portfolio-summary" id="portfolio-summary" aria-label="本机持仓统计" aria-live="polite"></section>
-<div class="watch-workspace"><div class="watch-list-pane"><section class="card anomaly-section">
-            <div class="card-header">
-                <h2>盘中异动</h2>
+<div class="watch-workspace"><div class="watch-list-pane"><section class="card custom-index-section" data-collapsible="true">
+            <div class="card-header" role="button" tabindex="0">
+                <h2>自选指数</h2>
+                <span class="custom-index-header-time" id="custom-index-update-time"></span>
+                <span class="collapse-icon">▼</span>
             </div>
-            <div class="card-body" id="anomaly-root">
-                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载异动流</strong><span class="ui-state-detail">监控自选/持仓与昨日梯队的急拉急跌、封板与开板。</span></div>
+            <div class="card-body">
+                <form class="custom-index-add-form" id="custom-index-add-form" hidden>
+                    <input type="text" id="custom-index-input" autocomplete="off" placeholder="输入指数 / ETF / 板块代码或名称" aria-label="指数或 ETF 代码/名称">
+                    <button type="submit">添加</button>
+                    <button type="button" class="secondary" id="custom-index-add-cancel">取消</button>
+                </form>
+                <div class="index-grid" id="custom-index-grid"></div>
             </div>
         </section><section class="card watchlist-section" data-collapsible="false">
             <div class="card-header">
@@ -105,29 +112,14 @@
                     <div class="ui-state ui-state--empty" data-ui-state="empty" role="status"><strong class="ui-state-title">暂无自选股</strong><span class="ui-state-detail">通过上方输入框添加代码或股票名称。</span></div>
                 </div>
             </div>
-        </section><section class="card custom-index-section" data-collapsible="true">
-            <div class="card-header" role="button" tabindex="0">
-                <h2>自选指数</h2>
-                <span class="custom-index-header-time" id="custom-index-update-time"></span>
-                <span class="collapse-icon">▼</span>
+        </section></div><aside class="detail-dock" id="stock-detail-dock" aria-label="盘中异动"><section class="card anomaly-section">
+            <div class="card-header">
+                <h2>盘中异动</h2>
             </div>
-            <div class="card-body">
-                <form class="custom-index-add-form" id="custom-index-add-form" hidden>
-                    <input type="text" id="custom-index-input" autocomplete="off" placeholder="输入指数 / ETF / 板块代码或名称" aria-label="指数或 ETF 代码/名称">
-                    <button type="submit">添加</button>
-                    <button type="button" class="secondary" id="custom-index-add-cancel">取消</button>
-                </form>
-                <div class="index-grid" id="custom-index-grid"></div>
+            <div class="card-body" id="anomaly-root">
+                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载异动流</strong><span class="ui-state-detail">监控自选/持仓与昨日梯队的急拉急跌、封板与开板。</span></div>
             </div>
-        </section></div><aside class="detail-dock" id="stock-detail-dock" aria-label="标的详情"><div class="detail-placeholder" id="detail-placeholder"><span class="eyebrow">STOCK DETAIL</span><h3>从列表选择一个标的</h3><p>行情、研究与提醒，在同一处查看。</p></div><div class="modal-panel" id="stock-fund-panel" role="region" aria-labelledby="stock-fund-title" hidden>
-    <div class="modal-header">
-        <h3 id="stock-fund-title">标的详情</h3>
-        <button class="modal-close" id="stock-fund-close" aria-label="关闭">✕</button>
-    </div>
-    <div class="modal-body" id="stock-fund-body">
-        <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载个股详情</strong><span class="ui-state-detail">行情、技术面和资金数据返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>
-    </div>
-</div></aside></div>
+        </section></aside></div>
 </div>
 <div class="tab-panel" id="tab-market"><div class="workspace-heading"><div><p class="eyebrow">MARKET OVERVIEW</p><h2>先看市场，再看信号</h2></div></div><div class="market-grid"><section class="card index-section" data-collapsible="false">
             <div class="card-header">
@@ -572,6 +564,15 @@
     </div>
 </div>
 
+<div class="modal-panel" id="stock-fund-panel" role="dialog" aria-modal="true" aria-labelledby="stock-fund-title" hidden>
+    <div class="modal-header">
+        <h3 id="stock-fund-title">标的详情</h3>
+        <button class="modal-close" id="stock-fund-close" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body" id="stock-fund-body">
+        <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载个股详情</strong><span class="ui-state-detail">行情、技术面和资金数据返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>
+    </div>
+</div>
 <div class="modal-overlay" id="stock-fund-overlay" hidden></div>
 
 <!-- Modules 加载顺序:utils → state → cache → render-* / watchlist 子模块 → app.js 入口 -->

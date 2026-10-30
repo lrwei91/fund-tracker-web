@@ -177,12 +177,12 @@
         renderTabs();
     }
     function initDetailTabs() {
-        var dock = document.getElementById('stock-detail-dock');
-        if (!dock || !window.AppWorkbench || typeof window.AppWorkbench.openDetail !== 'function') return;
+        var pane = document.querySelector('.watch-list-pane');
+        if (!pane || !window.AppWorkbench || typeof window.AppWorkbench.openDetail !== 'function') return;
         tabStrip = document.createElement('div');
         tabStrip.className = 'detail-tabs';
         tabStrip.hidden = true;
-        dock.insertBefore(tabStrip, dock.firstChild);
+        pane.insertBefore(tabStrip, pane.firstChild);
         var original = window.AppWorkbench.openDetail;
         window.AppWorkbench.openDetail = function (code, trigger) {
             noteDetailOpened(code);

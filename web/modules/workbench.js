@@ -39,12 +39,8 @@
         });
     }
     function restoreDetail() {
-        var panel = document.getElementById('stock-fund-panel'), dock = document.getElementById('stock-detail-dock');
-        if (panel && dock) dock.appendChild(panel);
-        if (panel) { panel.hidden = true; panel.setAttribute('role', 'region'); panel.removeAttribute('aria-modal'); }
-        var placeholder = document.getElementById('detail-placeholder');
-        if (placeholder) placeholder.hidden = false;
-        document.body.classList.remove('has-inline-detail');
+        var panel = document.getElementById('stock-fund-panel');
+        if (panel) panel.hidden = true;
         markSelected();
         if (detailTrigger && detailTrigger.isConnected) detailTrigger.focus({ preventScroll: true });
         else if (selectedCode) {
@@ -58,25 +54,18 @@
         var panel = document.getElementById('stock-fund-panel');
         if (!panel || panel.hidden) return;
         if (window.__watch && window.__watch.invalidateDetail) window.__watch.invalidateDetail();
-        if (panel.getAttribute('role') === 'dialog' && window.AppDialog) window.AppDialog.close(panel);
+        if (window.AppDialog) window.AppDialog.close(panel);
         else restoreDetail();
     }
     function openDetail(code, trigger) {
         closeDetail();
         var panel = document.getElementById('stock-fund-panel'), overlay = document.getElementById('stock-fund-overlay');
+        if (!panel || !overlay) return;
         detailTrigger = trigger || document.activeElement; selectedCode = code;
         var list = document.getElementById('watchlist-grid'); scrollPosition = list ? list.scrollTop : 0;
-        if (window.innerWidth >= 1100 && state.currentTab === 'dashboard') {
-            document.getElementById('stock-detail-dock').appendChild(panel);
-            panel.hidden = false; panel.setAttribute('role', 'region'); panel.removeAttribute('aria-modal');
-            overlay.hidden = true; document.body.classList.add('has-inline-detail');
-            document.getElementById('detail-placeholder').hidden = true;
-            document.getElementById('stock-fund-close').focus({ preventScroll: true });
-        } else {
-            document.body.appendChild(panel); panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
-            if (window.AppDialog) window.AppDialog.open(panel, overlay, { trigger: detailTrigger, hideOnClose: true, focusTarget: document.getElementById('stock-fund-close'), onClose: restoreDetail });
-            else { panel.hidden = false; overlay.hidden = false; }
-        }
+        panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
+        if (window.AppDialog) window.AppDialog.open(panel, overlay, { trigger: detailTrigger, hideOnClose: true, focusTarget: document.getElementById('stock-fund-close'), onClose: restoreDetail });
+        else { panel.hidden = false; overlay.hidden = false; }
         markSelected();
     }
     function navigate(tab, updateHash) {
@@ -103,12 +92,7 @@
             var link = event.target.closest('[data-navigate], .tab-btn[data-tab]');
             if (link) navigate(link.dataset.navigate || link.dataset.tab);
         });
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && document.body.classList.contains('has-inline-detail')) closeDetail();
-        });
         window.addEventListener('hashchange', function () { navigate(location.hash.slice(1), false); });
-        var wide = window.innerWidth >= 1100;
-        window.addEventListener('resize', function () { var next = window.innerWidth >= 1100; if (wide !== next) { closeDetail(); wide = next; } });
         navigate(location.hash.slice(1) || 'dashboard', false);
     }
     window.AppWorkbench = { calculate: calculate, markSelected: markSelected, renderSummary: renderSummary, navigate: navigate, openDetail: openDetail, closeDetail: closeDetail, init: init };
