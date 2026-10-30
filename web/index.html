@@ -286,7 +286,7 @@
                     </div>
                 </div>
             </div>
-        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="limit">打板情绪</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
+        </section></div><section class="market-observation"><div class="workspace-heading"><div><p class="eyebrow">MARKET OBSERVATION</p><h2>市场观察</h2></div><span class="research-note">辅助信号，独立核对</span></div><div class="signal-workspace-tabs" role="tablist" aria-label="市场观察"><button class="signal-workspace-tab active" type="button" role="tab" aria-selected="true" data-signal-view="rotation">板块轮动</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="heat">市场热度</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="limit">打板情绪</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="ladder">昨日梯队</button><button class="signal-workspace-tab" type="button" role="tab" aria-selected="false" data-signal-view="anomaly">盘中异动</button></div><section class="card sector-rotation-section signal-workspace-panel" data-signal-panel="rotation" hidden>
             <div class="card-header sector-rotation-header">
                 <div class="sector-rotation-heading">
                     <h2>轮动板块</h2>
@@ -355,6 +355,20 @@
                 <div class="limit-up-list" id="limit-up-list">
                     <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载打板数据</strong><span class="ui-state-detail">列表返回后会在这里更新。</span><div class="ui-state-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>
                 </div>
+            </div>
+        </section><section class="card ladder-watch-section signal-workspace-panel" data-signal-panel="ladder" hidden>
+            <div class="card-header">
+                <h2>昨日梯队</h2>
+            </div>
+            <div class="card-body" id="ladder-watch-root">
+                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载梯队数据</strong><span class="ui-state-detail">昨日涨停梯队的实时表现返回后会在这里更新。</span></div>
+            </div>
+        </section><section class="card anomaly-section signal-workspace-panel" data-signal-panel="anomaly" hidden>
+            <div class="card-header">
+                <h2>盘中异动</h2>
+            </div>
+            <div class="card-body" id="anomaly-root">
+                <div class="ui-state ui-state--loading" data-ui-state="loading" role="status"><strong class="ui-state-title">正在加载异动流</strong><span class="ui-state-detail">监控自选/持仓与昨日梯队的急拉急跌、封板与开板。</span></div>
             </div>
         </section></section></div>
 <div class="tab-panel" id="tab-review"><div class="workspace-heading"><div><p class="eyebrow">DAILY REVIEW</p><h2>收盘之后，把今天看清楚</h2></div></div><section class="card review-section">
@@ -624,6 +638,7 @@
 <script src="modules/watchlist/watchlist.js"></script>
 <script src="modules/render-news.js"></script>
 <script src="modules/render-review.js"></script>
+<script src="modules/render-intraday.js"></script>
 <script src="modules/refresh-coordinator.js?rev=10002"></script>
 <script src="modules/workbench.js"></script>
 <script src="modules/research-reports.js"></script>

@@ -34,6 +34,7 @@
 | 提醒 | 价格提醒规则 CRUD、30 秒巡检、交易时段 + 120 秒行情新鲜度校验、边沿触发 + 冷却 + 每日上限 |
 | 存档 | 收盘存档层：每交易日 15:35 后把东财四池（涨停/炸板/跌停/昨日涨停）定稿名单与情绪读数落盘，近 31 天自动回补，为复盘类功能攒历史序列 |
 | 复盘 | 独立「复盘」分页：情绪读数与历史分位、连板天梯（标断层）、封板质量、近 5 日题材轮动；AI 五段复盘（情绪/资金/题材/龙虎榜/龙头）16:05 自动生成，数字逐个回查资料包、无出处标〔未核实〕；明日验证条件次日收盘自动对账并累计战绩 |
+| 盯盘增强 | 市场页新增「昨日梯队」「盘中异动」两个观察视图：昨日涨停梯队今日实时表现（再涨停/红盘率/平均涨幅）；异动流对自选/持仓+昨日梯队做 30 秒报价差分（急拉/急跌、封板、开板，5 分钟去重，落盘可回看）；六时点（09:25/09:35/10:00/11:30/14:00/15:00）情绪快照落盘，复盘页可回看全天情绪路径 |
 | 资讯 | 财联社快讯、个股新闻、全球资讯、新闻源可切换；产业链视图：106 个全球产业源 / 12 赛道（移植自 investment-news），AI 每日提炼中文今日要点 + 标题翻译，要点带原文溯源 |
 | 交互 | ⌘K 全局搜索、明暗主题、SSE 实时事件推送、浏览器通知 + 站内 toast 双通道提醒 |
 
@@ -63,6 +64,7 @@ fund-tracker-web/
 │   ├── reports.js          报告中心（盘前 / 盘后 / 周度）
 │   ├── archive.js          市场存档层（收盘四池定稿 + 情绪读数落盘）
 │   ├── industry-news.js    产业链资讯（RSS 抓取 + AI 今日要点/翻译）
+│   ├── intraday.js         盯盘增强（昨日梯队/盘中异动差分/六时点情绪快照）
 │   ├── industry-sources.json 产业链源库（106 源 / 12 赛道，含合规词表）
 │   ├── review.js           复盘层（情绪看板 + AI 五段复盘 + 数字核对 + 明日验证对账）
 │   ├── calendar.js         2025–2026 上交所休市表
@@ -130,6 +132,7 @@ cd server && node test-routes.js
 | `archive/` | 每日市场存档（四池定稿 + 情绪读数） | `YYYY-MM-DD.json` 一天一文件，另有 `state.json` 记失败尝试 |
 | `industry-news/` | 产业链资讯抓取结果与 AI 要点 | `items.json`（原文清单）与 `digest.json`（今日要点/翻译） |
 | `review/` | AI 复盘报告与明日验证记录 | `YYYY-MM-DD.json`（当日复盘）、`verify.json`（验证条件与对账结果） |
+| `intraday/` | 六时点情绪快照与盘中异动事件 | `YYYY-MM-DD.json`（快照）、`anomalies-YYYY-MM-DD.json`（异动事件） |
 
 ## 部署
 
@@ -171,7 +174,7 @@ systemd 单元（`deploy/stock-web.service`）以 `Restart=always` 常驻，工�
 | 市场全景 | `/market-data` `/sector-rotation` `/market-warnings` `/intraday-screening` `/opportunity-radar` |
 | 资金与情绪 | `/fund-flow-120d` `/dragon-tiger` `/limit-up` `/hot-rank` |
 | 资讯 | `/news` `/cls-news` `/global-news` `/stock-news` |
-| 服务类（server.js 内建） | `/price-alerts` `/stock-ai-research` `/research-reports` `/market-archive` `/industry-news` `/market-review` |
+| 服务类（server.js 内建） | `/price-alerts` `/stock-ai-research` `/research-reports` `/market-archive` `/industry-news` `/market-review` `/intraday` |
 
 请求参数、上游地址、降级链与错误码定义见 [`API-SPEC.md`](API-SPEC.md)。
 

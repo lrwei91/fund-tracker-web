@@ -87,11 +87,12 @@ function checkNumbersInText(text, allowed) {
 const REVIEW_PROMPT = '你是 A 股短线复盘编辑。仅基于输入资料包写复盘，不联网、不编造：资料包里没有的数字、个股、事件一律不许出现；某段资料缺失时该段只写「暂无数据」四个字加一句说明缺什么。输出只用 JSON：{"sections":{"emotion":"情绪段","capital":"资金段","theme":"题材段","dragon":"龙虎榜段","leader":"龙头段"},"tomorrow":{"stance":"偏强|中性|偏弱","conditions":[{"metric":"指标键","op":">=或<=","value":数值,"label":"中文说明"}]}}。每段 2-4 句中文，只陈述事实与结构，不给买卖建议。tomorrow.conditions 给 2-3 条对下一交易日的可判定条件，metric 只能取 ztCount、maxHeight、promoteRate、breakRate、yztMedianPct、dtCount，value 必须来自资料包当日数值附近的合理阈值，label 用中文复述该条件。';
 
 class MarketReview {
-  constructor({ dataDir, ai, internals, archive }) {
+  constructor({ dataDir, ai, internals, archive, getSnapshots }) {
     this.dir = path.join(dataDir, 'review');
     this.ai = ai || null;
     this.internals = internals || null;
     this.archive = archive || null;
+    this.getSnapshots = typeof getSnapshots === 'function' ? getSnapshots : null;
     this.generating = false;
     this.timer = null;
   }
@@ -204,6 +205,7 @@ class MarketReview {
       themes,
       topSeal,
       report: this.report(target),
+      snapshots: this.getSnapshots ? this.getSnapshots(target).slots : [],
       verifyForDate: verify.records.filter((r) => r.fromDate === target),
       verifyResultForDate: verify.records.filter((r) => r.targetDate === target),
       scoreboard: scoreboardOf(verify.records),

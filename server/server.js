@@ -62,12 +62,14 @@ const { ReportCenter } = require('./reports');
 const { MarketArchive } = require('./archive');
 const { IndustryNews } = require('./industry-news');
 const { MarketReview } = require('./review');
+const { IntradayService } = require('./intraday');
 const ai = new AiService({ store, dataDir: DATA_DIR, gateway, getSnapshot });
 const alerts = new PriceAlerts({ store, getQuotes, emit });
 const reports = new ReportCenter({ store, ai, getSnapshot, getQuotes, emit });
 const archive = new MarketArchive({ dataDir: DATA_DIR, internals: dataRoutes ? dataRoutes.internals : null });
 const industryNews = new IndustryNews({ dataDir: DATA_DIR, ai });
-const marketReview = new MarketReview({ dataDir: DATA_DIR, ai, internals: dataRoutes ? dataRoutes.internals : null, archive });
+const intraday = new IntradayService({ dataDir: DATA_DIR, store, internals: dataRoutes ? dataRoutes.internals : null, archive, getQuotes });
+const marketReview = new MarketReview({ dataDir: DATA_DIR, ai, internals: dataRoutes ? dataRoutes.internals : null, archive, getSnapshots: (d) => intraday.snapshots(d) });
 
 // ---- 响应信封 finalize（对齐 policy.rs）----
 const FAILURE_MESSAGES = {
@@ -152,6 +154,7 @@ async function dispatchData(routePath, query) {
   else if (routePath === '/market-archive') result = await archive.handle(query);
   else if (routePath === '/industry-news') result = await industryNews.handle(query);
   else if (routePath === '/market-review') result = await marketReview.handle(query);
+  else if (routePath === '/intraday') result = await intraday.handle(query);
   else result = await fetchDataRoute(routePath, query);
   result = finalize(result);
   if (key) {
@@ -358,6 +361,7 @@ server.listen(PORT, HOST, () => {
   archive.start();
   industryNews.start();
   marketReview.start();
+  intraday.start();
 });
 
 // ---- push2 依赖接口预热 ----

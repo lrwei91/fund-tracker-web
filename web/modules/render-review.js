@@ -129,6 +129,17 @@
             html += '<p class="review-breadth">封板质量：一次封死 ' + q.oneShotRate + '% · 平均炸板 ' + q.avgBreakTimes + ' 次 · 10 点前首封 ' + q.earlySealRate + '%</p>';
         }
 
+        // 盘中情绪路径（六时点快照）
+        var snaps = (board.snapshots || []).filter(function (x) { return x.summary; });
+        if (snaps.length) {
+            html += '<div class="review-block"><h3>盘中情绪路径 <small>六时点快照</small></h3><div class="review-theme-wrap"><table class="review-theme"><thead><tr><th>时点</th><th>涨停</th><th>炸板</th><th>跌停</th><th>炸板率</th><th>最高板</th><th>晋级率</th></tr></thead><tbody>';
+            snaps.forEach(function (x) {
+                var m = x.summary;
+                html += '<tr><td>' + x.label + '</td><td>' + m.ztCount + '</td><td>' + m.zbCount + '</td><td>' + m.dtCount + '</td><td>' + m.breakRate + '%</td><td>' + m.maxHeight + '</td><td>' + m.promoteRate + '%</td></tr>';
+            });
+            html += '</tbody></table></div></div>';
+        }
+
         // 连板天梯
         html += '<div class="review-block"><h3>连板天梯</h3>';
         if (board.ladderGaps && board.ladderGaps.length) {

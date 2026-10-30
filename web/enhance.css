@@ -229,3 +229,30 @@
 @media (max-width: 640px) {
   .electron-app .review-metrics { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============ 盘中盯盘：昨日梯队 / 盘中异动（融合第 3 期） ============ */
+.electron-app .intraday-note { margin: 0 0 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
+.electron-app .intraday-group { margin-top: 14px; }
+.electron-app .intraday-group-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 4px; }
+.electron-app .intraday-group-head strong { color: var(--text-primary); font-size: 13px; }
+.electron-app .intraday-group-head span { color: var(--text-tertiary); font-size: 11px; }
+.electron-app .intraday-rows { display: flex; flex-direction: column; }
+.electron-app .intraday-row { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.electron-app .intraday-row:last-child { border-bottom: none; }
+.electron-app .intraday-name { color: var(--text-primary); min-width: 128px; }
+.electron-app .intraday-name small { color: var(--text-tertiary); font-size: 10px; }
+.electron-app .intraday-ind { color: var(--text-tertiary); flex: 1; min-width: 60px; }
+.electron-app .intraday-price { color: var(--text-secondary); min-width: 52px; text-align: right; }
+.electron-app .intraday-pct { min-width: 64px; text-align: right; color: var(--text-secondary); }
+.electron-app .intraday-pct.is-up, .electron-app .intraday-status.is-up, .electron-app .intraday-type.is-up { color: var(--red); }
+.electron-app .intraday-pct.is-down, .electron-app .intraday-status.is-down, .electron-app .intraday-type.is-down { color: var(--green); }
+.electron-app .intraday-status { min-width: 36px; text-align: right; color: var(--text-tertiary); }
+.electron-app .intraday-status.is-limit { color: var(--red); font-weight: 700; }
+.electron-app .intraday-status.is-dlimit { color: var(--green); font-weight: 700; }
+.electron-app .intraday-time { color: var(--text-tertiary); min-width: 62px; font-variant-numeric: tabular-nums; }
+.electron-app .intraday-type { min-width: 36px; font-weight: 700; color: var(--text-secondary); }
+.electron-app .intraday-detail { flex: 1; color: var(--text-secondary); }
+@media (max-width: 640px) {
+  .electron-app .intraday-ind { display: none; }
+  .electron-app .intraday-name { min-width: 104px; }
+}
