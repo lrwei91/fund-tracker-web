@@ -617,8 +617,8 @@
         var pnlText = pnl === null
             ? '--'
             : (pnl > 0 ? '+' : '') + pnl.toFixed(2);
-        // 成本价允许 3 位小数（ETF 等）：第三位非 0 时显示 3 位，否则 2 位
-        var costText = /[1-9]$/.test(cost.toFixed(3)) ? cost.toFixed(3) : cost.toFixed(2);
+        // 成本价统一显示 3 位小数（普通股票与 ETF 一致）
+        var costText = cost.toFixed(3);
         return '<div class="watchlist-stock-cost">' +
             '<div class="cost-value">' + costText + '</div>' +
             '<div class="cost-pnl ' + pnlCls + '">' + pnlText + '</div>' +
