@@ -210,7 +210,7 @@
             '<div class="stock-cost-editor-row">' +
                 '<label class="stock-cost-field">' +
                     '<span>成本价</span>' +
-                    '<input type="number" step="0.01" min="0" data-cost-input placeholder="0.00" value="' + utils.escapeHtml(String(costVal)) + '">' +
+                    '<input type="number" step="0.001" min="0" data-cost-input placeholder="0.000" value="' + utils.escapeHtml(String(costVal)) + '">' +
                 '</label>' +
                 '<label class="stock-cost-field">' +
                     '<span>股数</span>' +
