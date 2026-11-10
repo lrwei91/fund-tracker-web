@@ -40,8 +40,9 @@ function round(n, digits) {
 }
 function validCode(c) { return typeof c === 'string' && /^\d{6}$/.test(c); }
 
-function limitPctFor(code, name) {
-  if (typeof name === 'string' && /ST/i.test(name)) return 5;
+// 涨跌幅限制只看板块，与风险警示状态无关：创业板/科创板 ST 自注册制起即 20%、
+// 北交所 30%；主板 ST 原 5% 已按 2026-07-06 实施的新版交易规则并轨为 10%。
+function limitPctFor(code) {
   if (/^(688|300|301)/.test(code)) return 20;
   if (/^(43|83|87|92)/.test(code)) return 30;
   return 10;
@@ -197,7 +198,7 @@ class IntradayService {
         quoted++;
         row.price = q.priceValue;
         row.pct = typeof q.changePercent === 'number' ? q.changePercent : null;
-        const lp = limitPctFor(s.code, q.name || s.name);
+        const lp = limitPctFor(s.code);
         if (row.pct !== null && row.pct >= lp - 0.35) row.status = '涨停';
         else if (row.pct !== null && row.pct <= -(lp - 0.35)) row.status = '跌停';
         else if (row.pct !== null && row.pct > 0) row.status = '红盘';
@@ -303,7 +304,7 @@ class IntradayService {
           ? price - q.change
           : (pct !== null && pct > -100 ? price / (1 + pct / 100) : null);
         if (prevClose && prevClose > 0) {
-          const lp = limitPctFor(code, name);
+          const lp = limitPctFor(code);
           const limitPrice = Math.round(prevClose * (1 + lp / 100) * 100) / 100;
           const atLimit = price >= limitPrice * 0.998 && pct !== null && pct > 0;
           const was = this.atLimit.has(code);
