@@ -71,7 +71,7 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
 .electron-app .sector-rotation-results > .ui-state { margin: 0; }
 .electron-app :is(.card-header, .modal-header, .settings-header) > :is(h2, h3) { min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
 .electron-app :is(.modal-close, .settings-close) { flex-shrink: 0; }
-.electron-app :is(.research-note, .report-note, .ui-state-detail, .settings-group-intro span) { overflow-wrap: anywhere; }
+.electron-app :is(.research-note, .ui-state-detail, .settings-group-intro span) { overflow-wrap: anywhere; }
 .electron-app .watchlist-header-row { background: var(--color-surface-subtle); padding-block: 10px; }
 .electron-app .watchlist-item { border-radius: 0; border-bottom: 1px solid var(--border); box-shadow: none; }
 .electron-app .watchlist-item:hover { background: var(--color-surface-subtle); }
@@ -90,32 +90,7 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
 .electron-app .stock-detail-page { min-width: 0; }
 .electron-app .research-position-editor { padding: 10px 0; font-size: 11px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .electron-app summary { cursor: pointer; line-height: 1.6; }
-.electron-app #report-center { min-width: 0; padding: 20px; border: 1px solid var(--border-strong); background: var(--color-surface-subtle); }
-.electron-app .report-heading { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.electron-app .report-heading h2 { font-size: 15px; }
-.electron-app .report-schedules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
-.electron-app .report-schedule { border: 1px solid var(--border); background: var(--color-surface); padding: 14px; display: grid; gap: 10px; min-width: 0; }
-.electron-app .report-schedule label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.electron-app .report-schedule input { accent-color: #707600; }
-.electron-app .report-schedule button { justify-self: start; }
-.electron-app .report-note { color: var(--text-secondary); font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
-.electron-app .report-status { color: var(--text-secondary); font-size: 11px; line-height: 1.6; margin: 10px 0; }
-.electron-app .report-list { display: grid; max-height: 340px; overflow: auto; overscroll-behavior: contain; }
-.electron-app .report-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); }
-.electron-app .report-row strong { font-size: 12px; }
-.electron-app .report-row small { display: block; margin-top: 5px; color: var(--text-tertiary); font-size: 10px; line-height: 1.6; }
-.electron-app .report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.electron-app .report-button { padding: 8px 10px; border: 1px solid var(--border-strong); background: var(--color-surface); color: var(--text-primary); border-radius: 3px; font: inherit; font-size: 11px; min-height: 32px; }
-.electron-app .report-button:hover { background: var(--color-accent-soft); }
-.electron-app .report-document { margin-top: 20px; padding-top: 18px; border-top: 2px solid var(--text-primary); }
-.electron-app .report-document h3 { font-size: 16px; margin: 8px 0; }
-.electron-app .report-document h4 { font-size: 12px; margin: 18px 0 8px; }
-.electron-app .report-document p, .electron-app .report-document li { font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
-.electron-app .report-document ul { padding-left: 20px; }
-.electron-app .report-position { padding: 16px 0; border-top: 1px solid var(--border); }
-.electron-app .report-facts { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0; color: var(--text-secondary); font: 11px var(--mono); line-height: 1.8; }
-.electron-app .report-tag { display: inline-block; background: var(--color-accent-soft); color: var(--color-accent-ink); padding: 3px 6px; font-size: 10px; }
-.electron-app :is(.card, #report-center, .watch-workspace, .market-grid, .research-toolbar, .research-metrics) { min-width: 0; }
+.electron-app :is(.card, .watch-workspace, .market-grid, .research-toolbar, .research-metrics) { min-width: 0; }
 .electron-app .research-toolbar { flex-wrap: wrap; }
 @media (min-width: 1100px) {
     .electron-app .watch-workspace { grid-template-columns: minmax(340px, 1fr) minmax(340px, .9fr); gap: 24px; }
@@ -160,10 +135,9 @@ html[data-theme="dark"] .electron-app { --color-accent: #efff00; --color-accent-
     .electron-app #storage-status { font-size: 9px; }
     .electron-app #main-content { padding: 16px 12px; }
     .electron-app .workspace-heading h2 { font-size: 18px; }
-    .electron-app .market-grid, .electron-app .report-schedules { grid-template-columns: minmax(0, 1fr); }
+    .electron-app .market-grid { grid-template-columns: minmax(0, 1fr); }
     .electron-app .portfolio-stat { padding: 14px 12px; }
     .electron-app .portfolio-stat strong { font-size: 21px; }
-    .electron-app #report-center { padding: 14px; }
     .electron-app .modal-panel { width: calc(100vw - 16px); }
 }
 @media (prefers-reduced-motion: reduce) {

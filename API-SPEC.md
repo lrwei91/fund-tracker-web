@@ -142,7 +142,7 @@ Web 复刻对应关系（建议）：`fetch_data` → 一个 `POST /api/fetch` �
 | 路由 | endpoint 策略 | stale 窗口 |
 |---|---|---|
 | /stock、/market-data、/stock-minute、/intraday-screening | Live | 0 |
-| /stock-research、/stock-ai-research、/price-alerts、/research-reports | Live | 0 |
+| /stock-research、/stock-ai-research、/price-alerts | Live | 0 |
 | /opportunity-radar | Derived | 600s（10 分钟） |
 | /stock-search、/hot-rank、/limit-up、/cls-news、/global-news、/news、/stock-news、/fund-flow-120d、/stock-kline、/market-warnings | Informational | 1800s（30 分钟） |
 | /sector-rotation | Informational | 1800s（30 分钟） |
@@ -777,7 +777,7 @@ Informational，stale 1800s。
 
 | 项 | 数值/规则 |
 |---|---|
-| Live 路由 | `stock`、`market-data`、`stock-minute`、`intraday-screening`、`stock-research`、`stock-ai-research`、`price-alerts`、`research-reports`，及所有未列名路径（默认 Live）；stale 窗口 0，失败不回退 |
+| Live 路由 | `stock`、`market-data`、`stock-minute`、`intraday-screening`、`stock-research`、`stock-ai-research`、`price-alerts`，及所有未列名路径（默认 Live）；stale 窗口 0，失败不回退 |
 | Informational 1800s | `stock-search`、`hot-rank`、`limit-up`、`cls-news`、`global-news`、`news`、`stock-news`、`stock-risk`、`dragon-tiger`、`fund-flow-120d`、`stock-kline`、`market-warnings`、`sector-rotation` |
 | Informational 3600s | `stock-fundamentals`（不在本次 19 路由内） |
 | Derived 600s | `opportunity-radar` |

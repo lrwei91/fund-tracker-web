@@ -1,7 +1,7 @@
 'use strict';
 // 配置存储：复刻桌面版 config.rs 语义（config.json v2）。
 // 落盘 {version:2, storageEncoding:'utf8-json', updatedAt, data:{}, private:{}}
-// data 白名单 21 键；JSON 型键落盘为解析后的 JSON 值，快照中回成 JSON 文本字符串。
+// data 白名单 18 键；JSON 型键落盘为解析后的 JSON 值，快照中回成 JSON 文本字符串。
 const fs = require('fs');
 const path = require('path');
 
@@ -12,16 +12,15 @@ const KEYS = [
   'fund_tracker_watchlist_remarks', 'fund_tracker_watchlist', 'fund_tracker_watchlist_tabs',
   'fund_tracker_active_watch_tab', 'fund_tracker_hot_rank_source', 'fund_tracker_limit_up_tab',
   'fund_tracker_ai_settings', 'fund_tracker_price_alerts',
-  'fund_tracker_research_history', 'fund_tracker_report_center',
+  'fund_tracker_research_history',
 ];
 const JSON_KEYS = new Set([
   'fund_tracker_settings', 'fund_tracker_collapse_state', 'fund_tracker_alert_settings',
   'fund_tracker_watch_alert_state', 'fund_tracker_custom_indices', 'fund_tracker_watchlist_cost',
   'fund_tracker_watchlist_remarks', 'fund_tracker_watchlist', 'fund_tracker_watchlist_tabs',
   'fund_tracker_ai_settings', 'fund_tracker_price_alerts', 'fund_tracker_research_history',
-  'fund_tracker_report_center',
 ]);
-const NATIVE_OWNED = new Set(['fund_tracker_report_center']);
+const NATIVE_OWNED = new Set();
 const CORRUPT_MSG = '配置文件损坏，未覆盖原文件；请修复配置文件后重试';
 
 function emptyDoc() {

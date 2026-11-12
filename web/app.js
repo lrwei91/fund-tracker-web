@@ -551,7 +551,6 @@
         initSettingsViews();
         if (window.AppResearch) window.AppResearch.init();
         if (window.AppPriceAlerts) window.AppPriceAlerts.init();
-        if (window.AppReports) window.AppReports.init();
         if (window.AppSignals) window.AppSignals.initHotRankTabs();
         if (window.AppWatchlist) window.AppWatchlist.initWatchlistTabs();
         if (window.AppNews) {

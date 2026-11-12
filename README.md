@@ -80,7 +80,6 @@ fund-tracker-web/
 浏览器 ──POST /api/fetch {path, query}──▶ server.js
                                           ├─ /price-alerts      → alerts.js
                                           ├─ /stock-ai-research → ai.js
-                                          ├─ /research-reports  → reports.js
                                           └─ 其余               → routes-data.js
                                                                     └─ gateway.js ──▶ 上游行情接口
                                          ◀── 统一信封 {success, data, meta, traceId, errorCode}
@@ -163,9 +162,9 @@ systemd 单元（`deploy/stock-web.service`）以 `Restart=always` 常驻，工�
 | POST | `/api/config/patch` | 配置增量写入（白名单外键忽略） |
 | GET | `/api/ai/status` | AI 设置状态（不含 Key） |
 | POST | `/api/ai/save` | 保存 AI 设置与 Key，支持 `clearKey` |
-| GET | `/api/events` | SSE 事件流：`price-alert-hit`、`research-report-state`、`research-report-notice` |
+| GET | `/api/events` | SSE 事件流：`price-alert-hit`、`price-alert-error` |
 
-`/api/fetch` 的 23 条路由：
+通过 `/api/fetch` 分发的路由：
 
 | 分组 | 路由 |
 |------|------|
@@ -173,7 +172,7 @@ systemd 单元（`deploy/stock-web.service`）以 `Restart=always` 常驻，工�
 | 市场全景 | `/market-data` `/sector-rotation` `/market-warnings` `/intraday-screening` `/opportunity-radar` |
 | 资金与情绪 | `/fund-flow-120d` `/dragon-tiger` `/limit-up` `/hot-rank` |
 | 资讯 | `/news` `/cls-news` `/global-news` `/stock-news` |
-| 服务类（server.js 内建） | `/price-alerts` `/stock-ai-research` `/research-reports` `/market-archive` `/industry-news` `/market-review` `/intraday` |
+| 服务类（server.js 内建） | `/price-alerts` `/stock-ai-research` `/market-archive` `/industry-news` `/market-review` `/intraday` |
 
 请求参数、上游地址、降级链与错误码定义见 [`API-SPEC.md`](API-SPEC.md)。
 

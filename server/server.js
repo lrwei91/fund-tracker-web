@@ -60,14 +60,12 @@ async function getSnapshot(code) {
 // ---- 本地服务 ----
 const { AiService } = require('./ai');
 const { PriceAlerts } = require('./alerts');
-const { ReportCenter } = require('./reports');
 const { MarketArchive } = require('./archive');
 const { IndustryNews } = require('./industry-news');
 const { MarketReview } = require('./review');
 const { IntradayService } = require('./intraday');
 const ai = new AiService({ getStore: storeFor, systemUsername: 'lrwei91', dataDir: DATA_DIR, gateway, getSnapshot });
 const alerts = new PriceAlerts({ stores, getQuotes, emit });
-const reports = new ReportCenter({ stores, ai, getSnapshot, getQuotes, emit });
 const archive = new MarketArchive({ dataDir: DATA_DIR, internals: dataRoutes ? dataRoutes.internals : null });
 const industryNews = new IndustryNews({ dataDir: DATA_DIR, ai });
 const intraday = new IntradayService({ dataDir: DATA_DIR, stores, internals: dataRoutes ? dataRoutes.internals : null, archive, getQuotes });
@@ -152,7 +150,6 @@ async function dispatchData(routePath, query, username) {
   let result;
   if (routePath === '/price-alerts') result = alerts.handle(query, username);
   else if (routePath === '/stock-ai-research') result = await ai.handle(query, username);
-  else if (routePath === '/research-reports') result = await reports.handle(query, username);
   else if (routePath === '/market-archive') result = await archive.handle(query);
   else if (routePath === '/industry-news') result = await industryNews.handle(query);
   else if (routePath === '/market-review') result = await marketReview.handle(query);
@@ -353,7 +350,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`[stock-web] listening on http://${HOST}:${PORT} data=${DATA_DIR} dataRoutes=${!!dataRoutes}`);
   alerts.start();
-  reports.start();
   archive.start();
   industryNews.start();
   marketReview.start();

@@ -42,7 +42,7 @@
     var sseOnline = null;
     var sseRetryDelay = 5000;
     var sseRetryTimer = null;
-    var SSE_EVENTS = ['price-alert-hit', 'price-alert-error', 'research-report-state', 'research-report-notice', 'research-report-open', 'stock-alert'];
+    var SSE_EVENTS = ['price-alert-hit', 'price-alert-error', 'stock-alert'];
     // 连接状态提示：断线时在顶栏给出「重连中」，避免提醒事件静默丢失而无感知。
     function setSseStatus(online) {
         if (sseOnline === online) return;
@@ -136,13 +136,6 @@
         aiSettingsStatus: function () { return httpJson('GET', '/api/ai/status'); },
         aiSettingsSave: function (options, apiKey, clearKey) {
             return httpJson('POST', '/api/ai/save', { options: options, apiKey: apiKey || null, clearKey: !!clearKey });
-        },
-        onReportState: function (callback) { return subscribe('research-report-state', callback); },
-        onReportOpen: function (callback) { return subscribeLocal('research-report-open', callback); },
-        onReportNotice: function (callback) { return subscribe('research-report-notice', callback); },
-        openReport: function (id) {
-            dispatchLocal('research-report-open', { id: id });
-            return Promise.resolve();
         },
         onPriceAlertHit: function (callback) { return subscribe('price-alert-hit', callback); },
         onPriceAlertError: function (callback) { return subscribe('price-alert-error', callback); },

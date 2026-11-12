@@ -82,7 +82,6 @@
         document.getElementById('header-title').textContent = state.KEYS.TAB_TITLES[tab];
         if (updateHash !== false) history.replaceState(null, '', tab === 'dashboard' ? location.pathname + location.search : '#' + tab);
         if (window.AppRefreshCoordinator && window.AppRefreshCoordinator.refreshTab) window.AppRefreshCoordinator.refreshTab(tab);
-        if (tab === 'research' && window.AppReports) window.AppReports.refresh();
         if (tab === 'alerts' && window.AppPriceAlerts) window.AppPriceAlerts.refresh();
         if (tab === 'review' && window.AppReview) window.AppReview.refresh();
         renderSummary();
