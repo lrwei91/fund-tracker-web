@@ -416,11 +416,27 @@ class IntradayService {
       try {
         const d = await this.internals.limitUp('summary');
         if (d && typeof d.ztCount === 'number') {
+          // 广度上游（push2）间歇失败：短重试一次；仍失败则沿用上一份的非空值，
+          // 并以 breadthAt 标明这份广度的实际取数时间，避免长期空着。
           let breadth = null;
-          try {
-            const b = await this.internals.marketData('breadth');
-            if (b && typeof b.up === 'number') breadth = { up: b.up, down: b.down, flat: b.flat };
-          } catch { /* 广度是 best-effort */ }
+          let breadthAt = null;
+          for (let attempt = 0; attempt < 2 && !breadth; attempt++) {
+            try {
+              const b = await this.internals.marketData('breadth');
+              if (b && typeof b.up === 'number') {
+                breadth = { up: b.up, down: b.down, flat: b.flat };
+                breadthAt = updatedAt;
+              }
+            } catch { /* 上游间歇失败，短重试一次 */ }
+            if (!breadth && attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+          }
+          if (!breadth) {
+            const prev = this._readJson(path.join(this._dir(), 'sentiment-live.json'), null);
+            if (prev && prev.breadth) {
+              breadth = prev.breadth;
+              breadthAt = prev.breadthAt || prev.updatedAt || null;
+            }
+          }
           this._writeJson(path.join(this._dir(), 'sentiment-live.json'), {
             date: today,
             updatedAt,
@@ -429,6 +445,7 @@ class IntradayService {
               breakRate: d.breakRate, maxHeight: d.maxHeight, promoteRate: d.promoteRate,
             },
             breadth,
+            breadthAt,
             upDownRatio: breadth && breadth.down > 0 ? round(breadth.up / breadth.down, 2) : null,
           });
         }
