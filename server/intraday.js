@@ -7,6 +7,9 @@
 //    事件落盘 DATA_DIR/intraday/anomalies-YYYY-MM-DD.json，盘后可回看。
 // 3) 六时点情绪快照：09:25/09:35/10:00/11:30/14:00/15:00 把当时情绪读数落盘
 //    DATA_DIR/intraday/YYYY-MM-DD.json，供复盘页回看全天情绪路径。
+// 4) 高频活数据落盘（交易时段内约 60 秒一轮）：情绪读数（与快照同口径）写入
+//    DATA_DIR/intraday/sentiment-live.json；板块资金流（行业每轮、概念隔轮）写入
+//    DATA_DIR/intraday/sector-live.json。供外部系统按 updatedAt 判新鲜。
 // 口径说明：报价无盘中最高价字段，封板/开板以最新价触及/离开涨停价判定，
 // 两次轮询之间一触即开的情形可能漏检；盘中池计数沿用打板接口 100 条口径。
 
@@ -75,6 +78,9 @@ class IntradayService {
     this.events = []; // today only
     this.eventsDay = null;
     this.nameCache = new Map();
+    this.liveBusy = false;
+    this.liveLastAt = 0;
+    this.liveRound = 0;
   }
 
   _dir() { return path.join(this.dataDir, 'intraday'); }
@@ -94,6 +100,7 @@ class IntradayService {
     const tick = () => {
       this._poll().catch(() => {});
       this._snapshotTick().catch(() => {});
+      this._liveTick().catch(() => {});
     };
     setTimeout(tick, 30000);
     this.timer = setInterval(tick, 30000);
@@ -390,6 +397,71 @@ class IntradayService {
     stored.slots = stored.slots || {};
     stored.slots[due.key] = { capturedAt: new Date().toISOString(), summary, breadth };
     this._writeJson(this._snapFile(today), stored);
+  }
+
+  /* ---------- 高频情绪与板块落盘 ---------- */
+
+  async _liveTick() {
+    if (!this.internals || this.liveBusy) return;
+    const now = Date.now();
+    if (now - this.liveLastAt < 55 * 1000) return;
+    const today = todayCst();
+    if (isTradingDay(today) !== true) return;
+    if (!isTradingSession(cstNow())) return;
+    this.liveBusy = true;
+    this.liveLastAt = now;
+    try {
+      const updatedAt = new Date().toISOString();
+      // 情绪读数：与六时点快照同口径（打板 summary + 市场广度）
+      try {
+        const d = await this.internals.limitUp('summary');
+        if (d && typeof d.ztCount === 'number') {
+          let breadth = null;
+          try {
+            const b = await this.internals.marketData('breadth');
+            if (b && typeof b.up === 'number') breadth = { up: b.up, down: b.down, flat: b.flat };
+          } catch { /* 广度是 best-effort */ }
+          this._writeJson(path.join(this._dir(), 'sentiment-live.json'), {
+            date: today,
+            updatedAt,
+            summary: {
+              ztCount: d.ztCount, zbCount: d.zbCount, dtCount: d.dtCount,
+              breakRate: d.breakRate, maxHeight: d.maxHeight, promoteRate: d.promoteRate,
+            },
+            breadth,
+            upDownRatio: breadth && breadth.down > 0 ? round(breadth.up / breadth.down, 2) : null,
+          });
+        }
+      } catch { /* 本轮情绪取数失败则保留上一份文件 */ }
+      // 板块资金流：行业每轮、概念隔轮，节流上游调用；每节带自己的 fetchedAt
+      this.liveRound += 1;
+      const sectorFile = path.join(this._dir(), 'sector-live.json');
+      const stored = this._readJson(sectorFile, null);
+      const out = stored && stored.date === today ? stored : { date: today };
+      let touched = false;
+      try {
+        const s = await this.internals.marketData('sector', 'industry', 'today');
+        if (s && Array.isArray(s.inflow)) {
+          out.industry = { fetchedAt: updatedAt, boardType: 'industry', period: 'today', inflow: s.inflow, outflow: s.outflow || [] };
+          touched = true;
+        }
+      } catch { /* 行业板块失败保留旧节 */ }
+      if (this.liveRound % 2 === 1) {
+        try {
+          const s = await this.internals.marketData('sector', 'concept', 'today');
+          if (s && Array.isArray(s.inflow)) {
+            out.concept = { fetchedAt: updatedAt, boardType: 'concept', period: 'today', inflow: s.inflow, outflow: s.outflow || [] };
+            touched = true;
+          }
+        } catch { /* 概念板块失败保留旧节 */ }
+      }
+      if (touched) {
+        out.updatedAt = updatedAt;
+        this._writeJson(sectorFile, out);
+      }
+    } finally {
+      this.liveBusy = false;
+    }
   }
 
   /* ---------- 路由 ---------- */
